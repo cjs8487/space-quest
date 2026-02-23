@@ -2,23 +2,27 @@ package com.deepwelldevelopment.spacequest;
 
 import org.tinylog.Logger;
 
+import com.deepwelldevelopment.spacequest.engine.Engine;
+import com.deepwelldevelopment.spacequest.engine.EngineContext;
+
 public class SpaceQuest {
-    private long window;
-    private int width = 800;
-    private int height = 600;
 
-    private void init() {
+    public void init(EngineContext engineContext) {
     }
 
-    private void input() {
+    public void input(EngineContext engineContext, long deltaTime) {
     }
 
-    private void update() {}
+    public void update(EngineContext engineContext, long deltaTime) {
+    }
 
-    private void cleanup() {
+    public void cleanup() {
     }
 
     public static void main(String[] args) {
         Logger.info("Starting Space Quest...");
+        var engine = new Engine("Space Quest", new SpaceQuest());
+        Logger.info("Started Space Quest");
+        engine.run();
     }
 }
