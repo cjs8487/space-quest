@@ -12,6 +12,7 @@ public class EngineConfig {
     private static final String FILENAME = "eng.properties";
     private static EngineConfig instance;
     private int ups;
+    private boolean vkValidate;
 
     private EngineConfig() {
         var props = new Properties();
@@ -19,6 +20,7 @@ public class EngineConfig {
         try (InputStream is = EngineConfig.class.getResourceAsStream("/" + FILENAME)) {
             props.load(is);
             ups = Integer.parseInt(props.getOrDefault("ups", DEFAULT_UPS).toString());
+            vkValidate = Boolean.parseBoolean(props.getOrDefault("vkValidate", "false").toString());
         } catch (IOException e) {
             Logger.error("Could not read [{}] properties file", FILENAME, e);
         }
@@ -33,5 +35,9 @@ public class EngineConfig {
 
     public int getUps() {
         return ups;
+    }
+
+    public boolean isVkValidate() {
+        return vkValidate;
     }
 }
