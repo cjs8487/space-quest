@@ -13,6 +13,7 @@ public class EngineConfig {
     private static EngineConfig instance;
     private int ups;
     private boolean vkValidate;
+    private String physicalDeviceName;
 
     private EngineConfig() {
         var props = new Properties();
@@ -21,6 +22,7 @@ public class EngineConfig {
             props.load(is);
             ups = Integer.parseInt(props.getOrDefault("ups", DEFAULT_UPS).toString());
             vkValidate = Boolean.parseBoolean(props.getOrDefault("vkValidate", "false").toString());
+            physicalDeviceName = props.getOrDefault("physicalDeviceName", "").toString();
         } catch (IOException e) {
             Logger.error("Could not read [{}] properties file", FILENAME, e);
         }
@@ -39,5 +41,9 @@ public class EngineConfig {
 
     public boolean isVkValidate() {
         return vkValidate;
+    }
+
+    public String getPhysicalDeviceName() {
+        return physicalDeviceName;
     }
 }

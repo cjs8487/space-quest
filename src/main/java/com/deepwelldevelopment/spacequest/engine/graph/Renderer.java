@@ -8,7 +8,7 @@ public class Renderer {
     private final VulkanContext vulkanContext;
 
     public Renderer(EngineContext context) {
-        this.vulkanContext = new VulkanContext();
+        this.vulkanContext = new VulkanContext(context.window());
     }
 
     public void cleanup() {
