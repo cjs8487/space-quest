@@ -9,6 +9,7 @@ public class VulkanContext {
     private final Instance instance;
     private final PhysicalDevice physicalDevice;
     private Surface surface;
+    private SwapChain swapChain;
 
     public VulkanContext(Window window) {
         var engCfg = EngineConfig.getInstance();
@@ -16,9 +17,11 @@ public class VulkanContext {
         physicalDevice = PhysicalDevice.createPhysicalDevice(instance, engCfg.getPhysicalDeviceName());
         device = new Device(physicalDevice);
         surface = new Surface(instance, physicalDevice, window);
+        swapChain = new SwapChain(window, device, surface, engCfg.getRequestedImages(), engCfg.getVsync());
     }
 
     public void cleanup() {
+        swapChain.cleanup(device);
         surface.cleanup(instance);
         device.cleanup();
         physicalDevice.cleanup();

@@ -11,9 +11,12 @@ public class EngineConfig {
     private static final int DEFAULT_UPS = 30;
     private static final String FILENAME = "eng.properties";
     private static EngineConfig instance;
+
     private int ups;
     private boolean vkValidate;
     private String physicalDeviceName;
+    private int requestedImages;
+    private boolean vsync;
 
     private EngineConfig() {
         var props = new Properties();
@@ -23,6 +26,8 @@ public class EngineConfig {
             ups = Integer.parseInt(props.getOrDefault("ups", DEFAULT_UPS).toString());
             vkValidate = Boolean.parseBoolean(props.getOrDefault("vkValidate", "false").toString());
             physicalDeviceName = props.getOrDefault("physicalDeviceName", "").toString();
+            requestedImages = Integer.parseInt(props.getOrDefault("requestedImages", "3").toString());
+            vsync = Boolean.parseBoolean(props.getOrDefault("vsync", "false").toString());
         } catch (IOException e) {
             Logger.error("Could not read [{}] properties file", FILENAME, e);
         }
@@ -45,5 +50,13 @@ public class EngineConfig {
 
     public String getPhysicalDeviceName() {
         return physicalDeviceName;
+    }
+
+    public int getRequestedImages() {
+        return requestedImages;
+    }
+
+    public boolean getVsync() {
+        return vsync;
     }
 }
