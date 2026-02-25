@@ -17,6 +17,8 @@ public class EngineConfig {
     private String physicalDeviceName;
     private int requestedImages;
     private boolean vsync;
+    private boolean debugShaders;
+    private boolean shaderRecompilation;
 
     private EngineConfig() {
         var props = new Properties();
@@ -28,6 +30,8 @@ public class EngineConfig {
             physicalDeviceName = props.getOrDefault("physicalDeviceName", "").toString();
             requestedImages = Integer.parseInt(props.getOrDefault("requestedImages", "3").toString());
             vsync = Boolean.parseBoolean(props.getOrDefault("vsync", "false").toString());
+            debugShaders = Boolean.parseBoolean(props.getOrDefault("debugShaders", "false").toString());
+            shaderRecompilation = Boolean.parseBoolean(props.getOrDefault("shaderRecompilation", "false").toString());
         } catch (IOException e) {
             Logger.error("Could not read [{}] properties file", FILENAME, e);
         }
@@ -58,5 +62,13 @@ public class EngineConfig {
 
     public boolean getVsync() {
         return vsync;
+    }
+
+    public boolean isDebugShaders() {
+        return debugShaders;
+    }
+
+    public boolean isShaderRecompilation() {
+        return shaderRecompilation;
     }
 }

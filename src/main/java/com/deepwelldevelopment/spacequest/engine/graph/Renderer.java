@@ -4,10 +4,12 @@ import static org.lwjgl.vulkan.VK13.VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
 import static org.lwjgl.vulkan.VK13.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
 import java.util.Arrays;
+import java.util.List;
 
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.VkCommandBufferSubmitInfo;
 import org.lwjgl.vulkan.VkSemaphoreSubmitInfo;
+import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
 import com.deepwelldevelopment.spacequest.engine.graph.scene.SceneRenderer;
@@ -19,6 +21,7 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.Semaphore;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.SwapChain;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
+import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 
 public class Renderer {
 
@@ -31,6 +34,7 @@ public class Renderer {
     private final Semaphore[] renderCompleteSemaphores;
     private final SceneRenderer sceneRenderer;
     private final VulkanContext vulkanContext;
+    private final ModelsCache modelsCache;
     private int currentFrame;
 
     public Renderer(EngineContext context) {
@@ -56,12 +60,13 @@ public class Renderer {
             renderCompleteSemaphores[i] = new Semaphore(vulkanContext);
         }
         sceneRenderer = new SceneRenderer(vulkanContext);
+        modelsCache = new ModelsCache();
     }
 
     public void cleanup() {
         vulkanContext.getDevice().waitIdle();
 
-        sceneRenderer.cleanup();
+        sceneRenderer.cleanup(vulkanContext);
 
         Arrays.asList(renderCompleteSemaphores).forEach(i -> i.cleanup(vulkanContext));
         Arrays.asList(presentationCompleteSemaphores).forEach(i -> i.cleanup(vulkanContext));
@@ -73,6 +78,12 @@ public class Renderer {
         }
 
         vulkanContext.cleanup();
+    }
+
+    public void init(List<ModelData> models) {
+        Logger.debug("Loading {} model(s)", models.size());
+        modelsCache.loadModels(vulkanContext, models, commandPools[0], graphicsQueue);
+        Logger.debug("Loaded {} model(s)", models.size());
     }
 
     private void recordingStart(CommandPool pool, CommandBuffer buffer) {
@@ -99,7 +110,7 @@ public class Renderer {
         if (imageIndex < 0) {
             return;
         }
-        sceneRenderer.render(vulkanContext, buffer, imageIndex);
+        sceneRenderer.render(vulkanContext, buffer, modelsCache, imageIndex);
 
         recordingStop(buffer);
 
