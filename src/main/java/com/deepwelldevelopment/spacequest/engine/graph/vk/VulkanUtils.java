@@ -17,16 +17,27 @@ import static org.lwjgl.vulkan.VK10.VK_EVENT_RESET;
 import static org.lwjgl.vulkan.VK10.VK_EVENT_SET;
 import static org.lwjgl.vulkan.VK10.VK_INCOMPLETE;
 import static org.lwjgl.vulkan.VK10.VK_NOT_READY;
+import static org.lwjgl.vulkan.VK10.VK_QUEUE_FAMILY_IGNORED;
+import static org.lwjgl.vulkan.VK10.VK_REMAINING_ARRAY_LAYERS;
+import static org.lwjgl.vulkan.VK10.VK_REMAINING_MIP_LEVELS;
 import static org.lwjgl.vulkan.VK10.VK_SUCCESS;
 import static org.lwjgl.vulkan.VK10.VK_TIMEOUT;
+import static org.lwjgl.vulkan.VK13.vkCmdPipelineBarrier2;
 
 import java.util.Locale;
+
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.vulkan.VkCommandBuffer;
+import org.lwjgl.vulkan.VkDependencyInfo;
+import org.lwjgl.vulkan.VkImageMemoryBarrier2;
 
 public class VulkanUtils {
 
     public enum OSType {
         WINDOWS, MACOS, LINUX, OTHER
     }
+
+    public static final int MAX_IN_FLIGHT = 2;
 
     public static OSType getOS() {
         String os = System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH);
@@ -66,5 +77,35 @@ public class VulkanUtils {
             };
             throw new RuntimeException(errMsg + ": " + errCode + " [" + err + "]");
         }
+    }
+
+    public static void imageBarrier(MemoryStack stack, VkCommandBuffer cmdHandle, long image,
+            int oldLayout, int newLayout,
+            long srcStage, long dstStage,
+            long srcAccess, long dstAccess,
+            int aspectMask) {
+        var barrier = VkImageMemoryBarrier2.calloc(1)
+                .sType$Default()
+                .oldLayout(oldLayout)
+                .newLayout(newLayout)
+                .srcStageMask(srcStage)
+                .dstStageMask(dstStage)
+                .srcAccessMask(srcAccess)
+                .dstAccessMask(dstAccess)
+                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .subresourceRange(r -> r
+                        .aspectMask(aspectMask)
+                        .baseMipLevel(0)
+                        .levelCount(VK_REMAINING_MIP_LEVELS)
+                        .baseArrayLayer(0)
+                        .layerCount(VK_REMAINING_ARRAY_LAYERS))
+                .image(image);
+
+        VkDependencyInfo dependencyInfo = VkDependencyInfo.calloc(stack)
+                .sType$Default()
+                .pImageMemoryBarriers(barrier);
+
+        vkCmdPipelineBarrier2(cmdHandle, dependencyInfo);
     }
 }

@@ -39,4 +39,8 @@ public class VulkanContext {
     public Surface getSurface() {
         return surface;
     }
+
+    public SwapChain getSwapChain() {
+        return swapChain;
+    }
 }

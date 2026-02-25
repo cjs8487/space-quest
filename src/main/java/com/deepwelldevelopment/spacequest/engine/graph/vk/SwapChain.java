@@ -3,15 +3,18 @@ package com.deepwelldevelopment.spacequest.engine.graph.vk;
 import static com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils.vkCheck;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_ASPECT_COLOR_BIT;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+import static org.lwjgl.vulkan.VK10.VK_SUCCESS;
 
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.Arrays;
 
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.vulkan.KHRSurface;
 import org.lwjgl.vulkan.KHRSwapchain;
 import org.lwjgl.vulkan.VkExtent2D;
+import org.lwjgl.vulkan.VkPresentInfoKHR;
 import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR;
 import org.lwjgl.vulkan.VkSwapchainCreateInfoKHR;
 import org.tinylog.Logger;
@@ -116,6 +119,46 @@ public class SwapChain {
         swapChainExtent.free();
         Arrays.asList(imageViews).forEach(i -> i.cleanup(device));
         KHRSwapchain.vkDestroySwapchainKHR(device.getVkDevice(), vkSwapChain, null);
+    }
+
+    public int acquireNextImage(Device device, Semaphore semaphore) {
+        int imageIndex;
+        try (var stack = MemoryStack.stackPush()) {
+            IntBuffer ip = stack.mallocInt(1);
+            int err = KHRSwapchain.vkAcquireNextImageKHR(device.getVkDevice(), vkSwapChain, ~0L,
+                    semaphore.getVkSemaphore(), MemoryUtil.NULL, ip);
+            if (err == KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR) {
+                return -1;
+            } else if (err == KHRSwapchain.VK_SUBOPTIMAL_KHR) {
+                // Not optimal but swapchain can still be used
+            } else if (err != VK_SUCCESS) {
+                throw new RuntimeException("Failed to acquire next image: " + err);
+            }
+            imageIndex = ip.get(0);
+        }
+        return imageIndex;
+    }
+
+    public boolean presentImage(Queue queue, Semaphore renderCompleteSemaphore, int imageIndex) {
+        boolean resize = false;
+        try (var stack = MemoryStack.stackPush()) {
+            var presentInfo = VkPresentInfoKHR.calloc(stack)
+                    .sType$Default()
+                    .pWaitSemaphores(stack.longs(renderCompleteSemaphore.getVkSemaphore()))
+                    .swapchainCount(1)
+                    .pSwapchains(stack.longs(vkSwapChain))
+                    .pImageIndices(stack.ints(imageIndex));
+
+            int err = KHRSwapchain.vkQueuePresentKHR(queue.getVkQueue(), presentInfo);
+            if (err == KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR || err == KHRSwapchain.VK_SUBOPTIMAL_KHR) {
+                resize = true;
+            } else if (err == KHRSwapchain.VK_SUBOPTIMAL_KHR) {
+                // Not optimal but swapchain can still be used
+            } else if (err != VK_SUCCESS) {
+                throw new RuntimeException("Failed to present image: " + err);
+            }
+        }
+        return resize;
     }
 
     public ImageView getImageView(int index) {

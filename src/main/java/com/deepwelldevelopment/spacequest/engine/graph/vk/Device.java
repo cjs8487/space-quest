@@ -20,6 +20,8 @@ import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkExtensionProperties;
+import org.lwjgl.vulkan.VkPhysicalDeviceFeatures2;
+import org.lwjgl.vulkan.VkPhysicalDeviceVulkan13Features;
 import org.tinylog.Logger;
 
 public class Device {
@@ -42,7 +44,18 @@ public class Device {
                         .pQueuePriorities(priorities);
             }
 
-            var deviceCreateInfo = VkDeviceCreateInfo.calloc(stack).sType$Default()
+            // Set up required features
+            var features13 = VkPhysicalDeviceVulkan13Features.calloc(stack)
+                    .sType$Default()
+                    .dynamicRendering(true)
+                    .synchronization2(true);
+
+            var features2 = VkPhysicalDeviceFeatures2.calloc(stack).sType$Default();
+            features2.pNext(features13.address());
+
+            var deviceCreateInfo = VkDeviceCreateInfo.calloc(stack)
+                    .sType$Default()
+                    .pNext(features2.address())
                     .ppEnabledExtensionNames(reqExtensions)
                     .pQueueCreateInfos(queueCreationInfoBuf);
 
