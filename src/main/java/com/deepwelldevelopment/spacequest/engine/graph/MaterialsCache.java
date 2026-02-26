@@ -17,6 +17,7 @@ import org.tinylog.Logger;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandBuffer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandPool;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.Queue;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.Texture;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanBuffer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
@@ -80,10 +81,14 @@ public class MaterialsCache {
             var material = materials.get(i);
             String texturePath = material.texturePath();
             boolean hasTexture = texturePath != null && !texturePath.isEmpty();
+            boolean isTransparent;
             if (hasTexture) {
-                textureCache.addTexture(vkCtx, texturePath, texturePath, VK_FORMAT_R8G8B8A8_SRGB);
+                Texture texture = textureCache.addTexture(vkCtx, texturePath, texturePath, VK_FORMAT_R8G8B8A8_SRGB);
+                isTransparent = texture.isTransparent();
+            } else {
+                isTransparent = material.diffuseColor().w < 1.0f;
             }
-            VulkanMaterial vulkanMaterial = new VulkanMaterial(material.id());
+            VulkanMaterial vulkanMaterial = new VulkanMaterial(material.id(), isTransparent);
             materialsMap.put(vulkanMaterial.id(), vulkanMaterial);
 
             material.diffuseColor().get(offset, data);

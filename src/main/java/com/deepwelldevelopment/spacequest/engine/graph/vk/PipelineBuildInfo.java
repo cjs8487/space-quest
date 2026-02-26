@@ -12,12 +12,14 @@ public class PipelineBuildInfo {
     private int depthFormat;
     private PushConstRange[] pushConstantRanges;
     private DescSetLayout[] descSetLayouts;
+    private boolean useBlend;
 
     public PipelineBuildInfo(ShaderModule[] shaderModules, VkPipelineVertexInputStateCreateInfo vi, int colorFormat) {
         this.shaderModules = shaderModules;
         this.vi = vi;
         this.colorFormat = colorFormat;
         depthFormat = VK_FORMAT_UNDEFINED;
+        useBlend = false;
     }
 
     public int getColorFormat() {
@@ -44,6 +46,10 @@ public class PipelineBuildInfo {
         return descSetLayouts;
     }
 
+    public boolean isUseBlend() {
+        return useBlend;
+    }
+
     public PipelineBuildInfo setDepthFormat(int depthFormat) {
         this.depthFormat = depthFormat;
         return this;
@@ -56,6 +62,11 @@ public class PipelineBuildInfo {
 
     public PipelineBuildInfo setDescSetLayouts(DescSetLayout[] descSetLayouts) {
         this.descSetLayouts = descSetLayouts;
+        return this;
+    }
+
+    public PipelineBuildInfo setUseBlend(boolean useBlend) {
+        this.useBlend = useBlend;
         return this;
     }
 }

@@ -33,6 +33,7 @@ public class Texture {
     private final int width;
     private boolean recordedTransition;
     private VulkanBuffer stgBuffer;
+    private boolean transparent;
 
     public Texture(VulkanContext vulkanContext, String id, ImageSrc srcImage, int imageFormat) {
         this.id = id;
@@ -40,6 +41,7 @@ public class Texture {
         width = srcImage.width();
         height = srcImage.height();
 
+        setTransparent(srcImage.data());
         createStgBuffer(vulkanContext, srcImage.data());
         var imageData = new Image.ImageData().width(width).height(height)
                 .usage(VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
@@ -91,6 +93,10 @@ public class Texture {
         return width;
     }
 
+    public boolean isTransparent() {
+        return transparent;
+    }
+
     private void recordCopyBuffer(MemoryStack stack, CommandBuffer cmd, VulkanBuffer bufferData) {
         VkBufferImageCopy.Buffer region = VkBufferImageCopy.calloc(1, stack)
                 .bufferOffset(0)
@@ -105,6 +111,20 @@ public class Texture {
 
         vkCmdCopyBufferToImage(cmd.getVkCommandBuffer(), bufferData.getBuffer(), image.getVkImage(),
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region);
+    }
+
+    private void setTransparent(ByteBuffer data) {
+        int numPixels = data.capacity() / 4;
+        int offset = 0;
+        transparent = false;
+        for (int i = 0; i < numPixels; i++) {
+            int a = (0xFF & data.get(offset + 3));
+            if (a < 255) {
+                transparent = true;
+                break;
+            }
+            offset += 4;
+        }
     }
 
     public void recordTextureTransition(CommandBuffer cmd) {

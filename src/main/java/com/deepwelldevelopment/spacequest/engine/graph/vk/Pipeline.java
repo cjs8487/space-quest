@@ -1,6 +1,10 @@
 package com.deepwelldevelopment.spacequest.engine.graph.vk;
 
 import static com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils.vkCheck;
+import static org.lwjgl.vulkan.VK10.VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+import static org.lwjgl.vulkan.VK10.VK_BLEND_FACTOR_SRC_ALPHA;
+import static org.lwjgl.vulkan.VK10.VK_BLEND_FACTOR_ZERO;
+import static org.lwjgl.vulkan.VK10.VK_BLEND_OP_ADD;
 import static org.lwjgl.vulkan.VK10.VK_COLOR_COMPONENT_A_BIT;
 import static org.lwjgl.vulkan.VK10.VK_COLOR_COMPONENT_B_BIT;
 import static org.lwjgl.vulkan.VK10.VK_COLOR_COMPONENT_G_BIT;
@@ -124,10 +128,17 @@ public class Pipeline {
 			}
 
 			var blendAttState = VkPipelineColorBlendAttachmentState.calloc(1, stack)
-					.colorWriteMask(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
-							| VK_COLOR_COMPONENT_B_BIT
+					.colorWriteMask(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
 							| VK_COLOR_COMPONENT_A_BIT)
-					.blendEnable(false);
+					.blendEnable(buildInfo.isUseBlend());
+			if (buildInfo.isUseBlend()) {
+				blendAttState.get(0).colorBlendOp(VK_BLEND_OP_ADD)
+						.alphaBlendOp(VK_BLEND_OP_ADD)
+						.srcColorBlendFactor(VK_BLEND_FACTOR_SRC_ALPHA)
+						.dstColorBlendFactor(VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)
+						.srcAlphaBlendFactor(VK_BLEND_FACTOR_SRC_ALPHA)
+						.dstAlphaBlendFactor(VK_BLEND_FACTOR_ZERO);
+			}
 			var colorBlendState = VkPipelineColorBlendStateCreateInfo.calloc(stack)
 					.sType$Default()
 					.pAttachments(blendAttState);
