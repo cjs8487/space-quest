@@ -8,6 +8,10 @@ import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -32,11 +36,9 @@ public class ModelsCache {
         this.modelsMap = new java.util.HashMap<>();
     }
 
-    private static TransferBuffer createIndicesBuffers(VulkanContext context, MeshData meshData) {
-        int[] indices = meshData.indices();
-        int numIndices = indices.length;
-        int bufferSize = numIndices * VulkanUtils.INT_SIZE;
-
+    private static TransferBuffer createIndicesBuffers(VulkanContext context, MeshData meshData,
+            DataInputStream idxInput) throws IOException {
+        int bufferSize = meshData.indexSize();
         var srcBuffer = new VulkanBuffer(context, bufferSize,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -46,21 +48,21 @@ public class ModelsCache {
 
         long mappedMemory = srcBuffer.map(context);
         IntBuffer data = MemoryUtil.memIntBuffer(mappedMemory, (int) srcBuffer.getRequestedSize());
-        data.put(indices);
+
+        int valuesToRead = meshData.indexSize() / VulkanUtils.INT_SIZE;
+        while (valuesToRead > 0) {
+            data.put(idxInput.readInt());
+            valuesToRead--;
+        }
+
         srcBuffer.unmap(context);
 
         return new TransferBuffer(srcBuffer, dstBuffer);
     }
 
-    private static TransferBuffer createVerticesBuffers(VulkanContext context, MeshData meshData) {
-        float[] positions = meshData.positions();
-        float[] texCoords = meshData.texCoords();
-        if (texCoords == null || texCoords.length == 0) {
-            texCoords = new float[(positions.length / 3) * 2];
-        }
-        int numElements = positions.length + texCoords.length;
-        int bufferSize = numElements * VulkanUtils.FLOAT_SIZE;
-
+    private static TransferBuffer createVerticesBuffers(VulkanContext context, MeshData meshData,
+            DataInputStream vtxInput) throws IOException {
+        int bufferSize = meshData.vertexSize();
         var srcBuffer = new VulkanBuffer(context, bufferSize,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -71,15 +73,10 @@ public class ModelsCache {
         long mappedMemory = srcBuffer.map(context);
         FloatBuffer data = MemoryUtil.memFloatBuffer(mappedMemory, (int) srcBuffer.getRequestedSize());
 
-        int rows = positions.length / 3;
-        for (int row = 0; row < rows; row++) {
-            int startPos = row * 3;
-            int startTex = row * 2;
-            data.put(positions[startPos]);
-            data.put(positions[startPos + 1]);
-            data.put(positions[startPos + 2]);
-            data.put(texCoords[startTex]);
-            data.put(texCoords[startTex + 1]);
+        int valuesToRead = meshData.vertexSize() / VulkanUtils.FLOAT_SIZE;
+        while (valuesToRead > 0) {
+            data.put(vtxInput.readFloat());
+            valuesToRead--;
         }
 
         srcBuffer.unmap(context);
@@ -88,34 +85,44 @@ public class ModelsCache {
     }
 
     public void loadModels(VulkanContext context, List<ModelData> models, CommandPool commandPool, Queue queue) {
-        List<VulkanBuffer> stagingBufferList = new ArrayList<>();
+        try {
+            List<VulkanBuffer> stagingBufferList = new ArrayList<>();
 
-        var cmd = new CommandBuffer(context, commandPool, true, true);
-        cmd.beginRecording();
+            var cmd = new CommandBuffer(context, commandPool, true, true);
+            cmd.beginRecording();
 
-        for (ModelData modelData : models) {
-            VulkanModel vkModel = new VulkanModel(modelData.id());
-            modelsMap.put(vkModel.getId(), vkModel);
+            for (ModelData modelData : models) {
+                VulkanModel vulkanModel = new VulkanModel(modelData.id());
+                modelsMap.put(vulkanModel.getId(), vulkanModel);
 
-            for (MeshData meshData : modelData.meshes()) {
-                TransferBuffer verticesBuffers = createVerticesBuffers(context, meshData);
-                TransferBuffer indicesBuffers = createIndicesBuffers(context, meshData);
-                stagingBufferList.add(verticesBuffers.srcBuffer());
-                stagingBufferList.add(indicesBuffers.srcBuffer());
-                verticesBuffers.recordTransferCommand(cmd);
-                indicesBuffers.recordTransferCommand(cmd);
+                DataInputStream vtxInput = new DataInputStream(
+                        new BufferedInputStream(new FileInputStream(modelData.vertexPath())));
+                DataInputStream idxInput = new DataInputStream(
+                        new BufferedInputStream(new FileInputStream(modelData.indexPath())));
+                // Transform meshes loading their data into GPU buffers
+                for (MeshData meshData : modelData.meshes()) {
+                    TransferBuffer verticesBuffers = createVerticesBuffers(context, meshData, vtxInput);
+                    TransferBuffer indicesBuffers = createIndicesBuffers(context, meshData, idxInput);
+                    stagingBufferList.add(verticesBuffers.srcBuffer());
+                    stagingBufferList.add(indicesBuffers.srcBuffer());
+                    verticesBuffers.recordTransferCommand(cmd);
+                    indicesBuffers.recordTransferCommand(cmd);
 
-                VulkanMesh vkMesh = new VulkanMesh(meshData.id(), verticesBuffers.dstBuffer(),
-                        indicesBuffers.dstBuffer(), meshData.indices().length);
-                vkModel.getMeshes().add(vkMesh);
+                    VulkanMesh vulkanMesh = new VulkanMesh(meshData.id(), verticesBuffers.dstBuffer(),
+                            indicesBuffers.dstBuffer(), meshData.indexSize() / VulkanUtils.INT_SIZE,
+                            meshData.materialId());
+                    vulkanModel.getMeshes().add(vulkanMesh);
+                }
             }
+
+            cmd.endRecording();
+            cmd.submitAndWait(context, queue);
+            cmd.cleanup(context, commandPool);
+
+            stagingBufferList.forEach(b -> b.cleanup(context));
+        } catch (Exception excp) {
+            throw new RuntimeException(excp);
         }
-
-        cmd.endRecording();
-        cmd.submitAndWait(context, queue);
-        cmd.cleanup(context, commandPool);
-
-        stagingBufferList.forEach(b -> b.cleanup(context));
     }
 
     public void cleanup(VulkanContext context) {

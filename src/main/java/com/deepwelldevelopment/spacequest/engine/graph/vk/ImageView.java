@@ -16,11 +16,13 @@ public class ImageView {
     private final int mipLevels;
     private final long vkImage;
     private final long vkImageView;
+    private final boolean depthImage;
 
-    public ImageView(Device device, long vkImage, ImageViewData imageViewData) {
+    public ImageView(Device device, long vkImage, ImageViewData imageViewData, boolean depthImage) {
         this.aspectMask = imageViewData.aspectMask;
         this.mipLevels = imageViewData.mipLevels;
         this.vkImage = vkImage;
+        this.depthImage = depthImage;
         try (var stack = MemoryStack.stackPush()) {
             LongBuffer lp = stack.mallocLong(1);
             var viewCreateInfo = VkImageViewCreateInfo.calloc(stack)
@@ -59,6 +61,10 @@ public class ImageView {
 
     public long getVkImageView() {
         return vkImageView;
+    }
+
+    public boolean isDepthImage() {
+        return depthImage;
     }
 
     public static class ImageViewData {

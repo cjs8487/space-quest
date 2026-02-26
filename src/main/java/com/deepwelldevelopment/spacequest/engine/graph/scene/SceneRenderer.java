@@ -5,6 +5,11 @@ import static org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OP
 import static org.lwjgl.vulkan.VK10.VK_ATTACHMENT_LOAD_OP_CLEAR;
 import static org.lwjgl.vulkan.VK10.VK_ATTACHMENT_STORE_OP_DONT_CARE;
 import static org.lwjgl.vulkan.VK10.VK_ATTACHMENT_STORE_OP_STORE;
+import static org.lwjgl.vulkan.VK10.VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+import static org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+import static org.lwjgl.vulkan.VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+import static org.lwjgl.vulkan.VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+import static org.lwjgl.vulkan.VK10.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_D16_UNORM;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_ASPECT_COLOR_BIT;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -14,8 +19,10 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_UNDEFINED;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_INDEX_TYPE_UINT32;
 import static org.lwjgl.vulkan.VK10.VK_PIPELINE_BIND_POINT_GRAPHICS;
+import static org.lwjgl.vulkan.VK10.VK_SAMPLER_ADDRESS_MODE_REPEAT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
+import static org.lwjgl.vulkan.VK10.vkCmdBindDescriptorSets;
 import static org.lwjgl.vulkan.VK10.vkCmdBindIndexBuffer;
 import static org.lwjgl.vulkan.VK10.vkCmdBindPipeline;
 import static org.lwjgl.vulkan.VK10.vkCmdBindVertexBuffers;
@@ -53,20 +60,33 @@ import org.lwjgl.vulkan.VkRect2D;
 import org.lwjgl.vulkan.VkRenderingAttachmentInfo;
 import org.lwjgl.vulkan.VkRenderingInfo;
 import org.lwjgl.vulkan.VkViewport;
+import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.engine.EngineConfig;
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
+import com.deepwelldevelopment.spacequest.engine.graph.MaterialsCache;
 import com.deepwelldevelopment.spacequest.engine.graph.ModelsCache;
+import com.deepwelldevelopment.spacequest.engine.graph.TextureCache;
+import com.deepwelldevelopment.spacequest.engine.graph.VulkanMaterial;
 import com.deepwelldevelopment.spacequest.engine.graph.VulkanMesh;
 import com.deepwelldevelopment.spacequest.engine.graph.VulkanModel;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.Attachment;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandBuffer;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.DescAllocator;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.DescSet;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.DescSetLayout;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.Device;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.ImageView;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.Pipeline;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.PipelineBuildInfo;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.PushConstRange;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.ShaderCompiler;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.ShaderModule;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.SwapChain;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.Texture;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.TextureSampler;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.TextureSamplerInfo;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanBuffer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
 import com.deepwelldevelopment.spacequest.engine.scene.Entity;
@@ -75,36 +95,67 @@ import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 public class SceneRenderer {
 
     private static final int DEPTH_FORMAT = VK_FORMAT_D16_UNORM;
+    private static final String DESC_ID_MAT = "SCN_DESC_ID_MAT";
+    private static final String DESC_ID_PRJ = "SCN_DESC_ID_PRJ";
+    private static final String DESC_ID_TEXT = "SCN_DESC_ID_TEXT";
+
+    private static final int PUSH_CONSTANTS_SIZE = VulkanUtils.MAT4X4_SIZE + VulkanUtils.INT_SIZE;
 
     private static final String FRAGMENT_SHADER_FILE_GLSL = "resources/shaders/scn_frg.glsl";
     private static final String FRAGMENT_SHADER_FILE_SPV = FRAGMENT_SHADER_FILE_GLSL + ".spv";
     private static final String VERTEX_SHADER_FILE_GLSL = "resources/shaders/scn_vtx.glsl";
     private static final String VERTEX_SHADER_FILE_SPV = VERTEX_SHADER_FILE_GLSL + ".spv";
 
+    private final VulkanBuffer buffProjMatrix;
     private final VkClearValue clearValueColor;
     private final VkClearValue clrValueDepth;
+    private final DescSetLayout descLayoutFrgStorage;
+    private final DescSetLayout descLayoutTexture;
+    private final DescSetLayout descLayoutVtxUniform;
     private final Pipeline pipeline;
     private final ByteBuffer pushConstBuff;
+    private final TextureSampler textureSampler;
     private Attachment[] attDepth;
     private VkRenderingAttachmentInfo.Buffer[] attInfoColor;
     private VkRenderingAttachmentInfo[] attInfoDepth;
     private VkRenderingInfo[] renderInfo;
 
-    public SceneRenderer(VulkanContext context) {
+    public SceneRenderer(VulkanContext vulkanContext, EngineContext engineContext) {
         clearValueColor = VkClearValue.calloc()
                 .color(c -> c.float32(0, 0.0f).float32(1, 0.0f).float32(2, 0.0f).float32(3, 0.0f));
         clrValueDepth = VkClearValue.calloc().color(c -> c.float32(0, 1.0f));
-        attDepth = createDepthAttachments(context);
-        attInfoColor = createColorAttachmentsInfo(context, clearValueColor);
-        attInfoDepth = createDepthAttachmentsInfo(context, attDepth, clrValueDepth);
-        renderInfo = createRenderInfo(context, attInfoColor, attInfoDepth);
+        attDepth = createDepthAttachments(vulkanContext);
+        attInfoColor = createColorAttachmentsInfo(vulkanContext, clearValueColor);
+        attInfoDepth = createDepthAttachmentsInfo(vulkanContext, attDepth, clrValueDepth);
+        renderInfo = createRenderInfo(vulkanContext, attInfoColor, attInfoDepth);
 
-        ShaderModule[] shaderModules = createShaderModules(context);
+        ShaderModule[] shaderModules = createShaderModules(vulkanContext);
 
-        pushConstBuff = MemoryUtil.memAlloc(VulkanUtils.MAT4X4_SIZE * 2);
+        pushConstBuff = MemoryUtil.memAlloc(PUSH_CONSTANTS_SIZE);
 
-        pipeline = createPipeline(context, shaderModules);
-        Arrays.asList(shaderModules).forEach(s -> s.cleanup(context));
+        descLayoutVtxUniform = new DescSetLayout(vulkanContext,
+                new DescSetLayout.LayoutInfo(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                        0, 1, VK_SHADER_STAGE_VERTEX_BIT));
+        buffProjMatrix = VulkanUtils.createHostVisibleBuff(vulkanContext, VulkanUtils.MAT4X4_SIZE,
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                DESC_ID_PRJ, descLayoutVtxUniform);
+        VulkanUtils.copyMatrixToBuffer(vulkanContext, buffProjMatrix,
+                engineContext.scene().getProjection().getProjectionMatrix(), 0);
+
+        descLayoutFrgStorage = new DescSetLayout(vulkanContext,
+                new DescSetLayout.LayoutInfo(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                        0, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
+
+        var textureSamplerInfo = new TextureSamplerInfo(VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                VK_BORDER_COLOR_INT_OPAQUE_BLACK, 1, true);
+        textureSampler = new TextureSampler(vulkanContext, textureSamplerInfo);
+        descLayoutTexture = new DescSetLayout(vulkanContext,
+                new DescSetLayout.LayoutInfo(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        0, TextureCache.MAX_TEXTURES, VK_SHADER_STAGE_FRAGMENT_BIT));
+
+        pipeline = createPipeline(vulkanContext, shaderModules,
+                new DescSetLayout[] { descLayoutVtxUniform, descLayoutFrgStorage, descLayoutTexture });
+        Arrays.asList(shaderModules).forEach(s -> s.cleanup(vulkanContext));
     }
 
     private static VkRenderingAttachmentInfo.Buffer[] createColorAttachmentsInfo(VulkanContext context,
@@ -182,15 +233,19 @@ public class SceneRenderer {
         return result;
     }
 
-    private static Pipeline createPipeline(VulkanContext vkCtx, ShaderModule[] shaderModules) {
+    private static Pipeline createPipeline(VulkanContext vkCtx, ShaderModule[] shaderModules,
+            DescSetLayout[] descSetLayouts) {
         var vtxBuffStruct = new VertexBufferStruct();
         var buildInfo = new PipelineBuildInfo(shaderModules, vtxBuffStruct.getVi(),
                 vkCtx.getSurface().getSurfaceFormat().format())
                 .setDepthFormat(DEPTH_FORMAT)
                 .setPushConstRanges(
                         new PushConstRange[] {
-                                new PushConstRange(VK_SHADER_STAGE_VERTEX_BIT, 0, VulkanUtils.MAT4X4_SIZE * 2)
-                        });
+                                new PushConstRange(VK_SHADER_STAGE_VERTEX_BIT, 0, VulkanUtils.MAT4X4_SIZE),
+                                new PushConstRange(VK_SHADER_STAGE_FRAGMENT_BIT, VulkanUtils.MAT4X4_SIZE,
+                                        VulkanUtils.INT_SIZE),
+                        })
+                .setDescSetLayouts(descSetLayouts);
         var pipeline = new Pipeline(vkCtx, buildInfo);
         vtxBuffStruct.cleanup();
         return pipeline;
@@ -214,8 +269,21 @@ public class SceneRenderer {
         clearValueColor.free();
     }
 
+    public void loadMaterials(VulkanContext vkCtx, MaterialsCache materialsCache, TextureCache textureCache) {
+        DescAllocator descAllocator = vkCtx.getDescAllocator();
+        Device device = vkCtx.getDevice();
+        DescSet descSet = descAllocator.addDescSet(device, DESC_ID_MAT, descLayoutFrgStorage);
+        DescSetLayout.LayoutInfo layoutInfo = descLayoutFrgStorage.getLayoutInfo();
+        var buffer = materialsCache.getMaterialsBuffer();
+        descSet.setBuffer(device, buffer, buffer.getRequestedSize(), layoutInfo.binding(), layoutInfo.descType());
+
+        List<ImageView> imageViews = textureCache.getAsList().stream().map(Texture::getImageView).toList();
+        descSet = vkCtx.getDescAllocator().addDescSet(device, DESC_ID_TEXT, descLayoutTexture);
+        descSet.setImagesArr(device, imageViews, textureSampler, 0);
+    }
+
     public void render(EngineContext engineContext, VulkanContext vulkanContext, CommandBuffer buffer,
-            ModelsCache modelsCache, int imageIndex) {
+            ModelsCache modelsCache, MaterialsCache materialsCache, int imageIndex) {
         try (var stack = MemoryStack.stackPush()) {
             SwapChain swapChain = vulkanContext.getSwapChain();
 
@@ -259,6 +327,14 @@ public class SceneRenderer {
             LongBuffer offsets = stack.mallocLong(1).put(0, 0L);
             LongBuffer vertexBuffer = stack.mallocLong(1);
 
+            DescAllocator descAllocator = vulkanContext.getDescAllocator();
+            LongBuffer descriptorSets = stack.mallocLong(3)
+                    .put(0, descAllocator.getDescSet(DESC_ID_PRJ).getVkDescriptorSet())
+                    .put(1, descAllocator.getDescSet(DESC_ID_MAT).getVkDescriptorSet())
+                    .put(2, descAllocator.getDescSet(DESC_ID_TEXT).getVkDescriptorSet());
+            vkCmdBindDescriptorSets(cmdHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.getVkPipelineLayout(),
+                    0, descriptorSets, null);
+
             Scene scene = engineContext.scene();
             List<Entity> entities = scene.getEntities();
             int numEntities = entities.size();
@@ -267,9 +343,16 @@ public class SceneRenderer {
                 VulkanModel model = modelsCache.getModel(entity.getModelId());
                 List<VulkanMesh> vulkanMeshList = model.getMeshes();
                 int numMeshes = vulkanMeshList.size();
-                setPushConstants(cmdHandle, scene.getProjection().getProjectionMatrix(), entity.getModelMatrix());
                 for (int j = 0; j < numMeshes; j++) {
                     var vulkanMesh = vulkanMeshList.get(j);
+                    String materialId = vulkanMesh.materialId();
+                    int materialIdx = materialsCache.getPosition(materialId);
+                    VulkanMaterial vulkanMaterial = materialsCache.getMaterial(materialId);
+                    if (vulkanMaterial == null) {
+                        Logger.warn("Mesh [{}] in model [{}] does not have material", j, model.getId());
+                        continue;
+                    }
+                    setPushConstants(cmdHandle, entity.getModelMatrix(), materialIdx);
                     vertexBuffer.put(0, vulkanMesh.verticesBuffer().getBuffer());
                     vkCmdBindVertexBuffers(cmdHandle, 0, vertexBuffer, offsets);
                     vkCmdBindIndexBuffer(cmdHandle, vulkanMesh.indicesBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
@@ -288,7 +371,7 @@ public class SceneRenderer {
         }
     }
 
-    public void resize(VulkanContext vkCtx) {
+    public void resize(EngineContext engineContext, VulkanContext vkCtx) {
         Arrays.asList(renderInfo).forEach(VkRenderingInfo::free);
         Arrays.asList(attInfoDepth).forEach(VkRenderingAttachmentInfo::free);
         Arrays.asList(attInfoColor).forEach(VkRenderingAttachmentInfo.Buffer::free);
@@ -297,11 +380,17 @@ public class SceneRenderer {
         attInfoColor = createColorAttachmentsInfo(vkCtx, clearValueColor);
         attInfoDepth = createDepthAttachmentsInfo(vkCtx, attDepth, clrValueDepth);
         renderInfo = createRenderInfo(vkCtx, attInfoColor, attInfoDepth);
+        VulkanUtils.copyMatrixToBuffer(vkCtx, buffProjMatrix,
+                engineContext.scene().getProjection().getProjectionMatrix(), 0);
     }
 
-    private void setPushConstants(VkCommandBuffer cmdHandle, Matrix4f projMatrix, Matrix4f modelMatrix) {
-        projMatrix.get(pushConstBuff);
-        modelMatrix.get(VulkanUtils.MAT4X4_SIZE, pushConstBuff);
-        vkCmdPushConstants(cmdHandle, pipeline.getVkPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, pushConstBuff);
+    private void setPushConstants(VkCommandBuffer cmdHandle, Matrix4f modelMatrix, int materialIndex) {
+        modelMatrix.get(0, pushConstBuff);
+        pushConstBuff.putInt(VulkanUtils.MAT4X4_SIZE, materialIndex);
+        vkCmdPushConstants(cmdHandle, pipeline.getVkPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0,
+                pushConstBuff.slice(0, VulkanUtils.MAT4X4_SIZE));
+        vkCmdPushConstants(cmdHandle, pipeline.getVkPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT,
+                VulkanUtils.MAT4X4_SIZE,
+                pushConstBuff.slice(VulkanUtils.MAT4X4_SIZE, VulkanUtils.INT_SIZE));
     }
 }

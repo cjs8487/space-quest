@@ -20,12 +20,15 @@ import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkExtensionProperties;
+import org.lwjgl.vulkan.VkPhysicalDeviceFeatures;
 import org.lwjgl.vulkan.VkPhysicalDeviceFeatures2;
 import org.lwjgl.vulkan.VkPhysicalDeviceVulkan13Features;
 import org.tinylog.Logger;
 
 public class Device {
+
     private final VkDevice vkDevice;
+    private final boolean samplerAnisotropy;
 
     public Device(PhysicalDevice physicalDevice) {
         Logger.debug("Creating logical device");
@@ -51,6 +54,13 @@ public class Device {
                     .synchronization2(true);
 
             var features2 = VkPhysicalDeviceFeatures2.calloc(stack).sType$Default();
+            var features = features2.features();
+
+            VkPhysicalDeviceFeatures supportedFeatures = physicalDevice.getVkPhysicalDeviceFeatures();
+            samplerAnisotropy = supportedFeatures.samplerAnisotropy();
+            if (samplerAnisotropy) {
+                features.samplerAnisotropy(true);
+            }
             features2.pNext(features13.address());
 
             var deviceCreateInfo = VkDeviceCreateInfo.calloc(stack)
@@ -120,5 +130,9 @@ public class Device {
 
     public void waitIdle() {
         vkDeviceWaitIdle(vkDevice);
+    }
+
+    public boolean isSamplerAnisotropy() {
+        return samplerAnisotropy;
     }
 }

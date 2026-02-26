@@ -22,6 +22,8 @@ public class EngineConfig {
     private float fov;
     private float zNear;
     private float zFar;
+    private String defaultTexturePath;
+    private int maxDescs;
 
     private EngineConfig() {
         var props = new Properties();
@@ -38,6 +40,8 @@ public class EngineConfig {
             fov = Float.parseFloat(props.getOrDefault("fov", 60.0f).toString());
             zNear = Float.parseFloat(props.getOrDefault("zNear", 1.0f).toString());
             zFar = Float.parseFloat(props.getOrDefault("zFar", 100.0f).toString());
+            defaultTexturePath = props.getProperty("defaultTexturePath").toString();
+            maxDescs = Integer.parseInt(props.getOrDefault("maxDescs", 1000).toString());
         } catch (IOException e) {
             Logger.error("Could not read [{}] properties file", FILENAME, e);
         }
@@ -88,5 +92,13 @@ public class EngineConfig {
 
     public float getZFar() {
         return zFar;
+    }
+
+    public String getDefaultTexturePath() {
+        return defaultTexturePath;
+    }
+
+    public int getMaxDescs() {
+        return maxDescs;
     }
 }

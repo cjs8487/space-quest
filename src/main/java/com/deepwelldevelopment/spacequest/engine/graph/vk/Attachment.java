@@ -28,7 +28,7 @@ public class Attachment {
         }
 
         var imageViewData = new ImageView.ImageViewData().format(image.getFormat()).aspectMask(aspectMask);
-        imageView = new ImageView(context.getDevice(), image.getVkImage(), imageViewData);
+        imageView = new ImageView(context.getDevice(), image.getVkImage(), imageViewData, depthAttachment);
     }
 
     public void cleanup(VulkanContext VulkanContext) {

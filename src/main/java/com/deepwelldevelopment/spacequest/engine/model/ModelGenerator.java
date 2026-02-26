@@ -1,0 +1,271 @@
+package com.deepwelldevelopment.spacequest.engine.model;
+
+import static org.lwjgl.assimp.Assimp.AI_MATKEY_COLOR_DIFFUSE;
+import static org.lwjgl.assimp.Assimp.aiGetMaterialColor;
+import static org.lwjgl.assimp.Assimp.aiGetMaterialTexture;
+import static org.lwjgl.assimp.Assimp.aiImportFile;
+import static org.lwjgl.assimp.Assimp.aiProcess_CalcTangentSpace;
+import static org.lwjgl.assimp.Assimp.aiProcess_FixInfacingNormals;
+import static org.lwjgl.assimp.Assimp.aiProcess_GenSmoothNormals;
+import static org.lwjgl.assimp.Assimp.aiProcess_JoinIdenticalVertices;
+import static org.lwjgl.assimp.Assimp.aiProcess_PreTransformVertices;
+import static org.lwjgl.assimp.Assimp.aiProcess_Triangulate;
+import static org.lwjgl.assimp.Assimp.aiReleaseImport;
+import static org.lwjgl.assimp.Assimp.aiReturn_SUCCESS;
+import static org.lwjgl.assimp.Assimp.aiTextureType_DIFFUSE;
+import static org.lwjgl.assimp.Assimp.aiTextureType_NONE;
+
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.IntBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.joml.Vector4f;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.assimp.AIColor4D;
+import org.lwjgl.assimp.AIFace;
+import org.lwjgl.assimp.AIMaterial;
+import org.lwjgl.assimp.AIMesh;
+import org.lwjgl.assimp.AIScene;
+import org.lwjgl.assimp.AIString;
+import org.lwjgl.assimp.AITexture;
+import org.lwjgl.assimp.AIVector3D;
+import org.lwjgl.system.MemoryStack;
+import org.tinylog.Logger;
+
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.GsonBuilder;
+
+public class ModelGenerator {
+
+    private static final Pattern EMBED_TEXT_ID = Pattern.compile("\\*([0-9]+)");
+    private static final int FLAGS = aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices |
+            aiProcess_Triangulate | aiProcess_FixInfacingNormals | aiProcess_CalcTangentSpace |
+            aiProcess_PreTransformVertices;
+
+    @Parameter(names = "-m", description = "Model path", required = true)
+    private String modelPath;
+
+    public static void main(String[] args) {
+        var main = new ModelGenerator();
+        var jCmd = JCommander.newBuilder().addObject(main).build();
+        try {
+            jCmd.parse(args);
+            main.mainProcessing();
+        } catch (ParameterException excp) {
+            jCmd.usage();
+        } catch (IOException excp) {
+            Logger.error("Error generating model", excp);
+        }
+    }
+
+    private static List<Float> processTextCoords(AIMesh aiMesh) {
+        List<Float> textCoords = new ArrayList<>();
+        AIVector3D.Buffer aiTextCoords = aiMesh.mTextureCoords(0);
+        int numTextCoords = aiTextCoords != null ? aiTextCoords.remaining() : 0;
+        for (int i = 0; i < numTextCoords; i++) {
+            AIVector3D textCoord = aiTextCoords.get();
+            textCoords.add(textCoord.x());
+            textCoords.add(1 - textCoord.y());
+        }
+        return textCoords;
+    }
+
+    private void mainProcessing() throws IOException {
+        Logger.debug("Loading model data [{}]", modelPath);
+        var modelFile = new File(modelPath);
+        if (!modelFile.exists()) {
+            throw new RuntimeException("Model path does not exist [" + modelPath + "]");
+        }
+
+        AIScene aiScene = aiImportFile(modelPath, FLAGS);
+        if (aiScene == null) {
+            throw new RuntimeException("Error loading model [modelPath: " + modelPath + "]");
+        }
+
+        String modelId = modelFile.getName();
+        if (modelId.contains(".")) {
+            modelId = modelId.substring(0, modelId.lastIndexOf('.'));
+        }
+
+        ModelBinData modelBinData = new ModelBinData(modelPath);
+
+        int numMaterials = aiScene.mNumMaterials();
+        Logger.debug("Number of materials: {}", numMaterials);
+        List<MaterialData> matList = new ArrayList<>();
+        File parentDirectory = modelFile.getParentFile();
+        for (int i = 0; i < numMaterials; i++) {
+            var aiMaterial = AIMaterial.create(aiScene.mMaterials().get(i));
+            MaterialData material = processMaterial(aiScene, aiMaterial, modelId, parentDirectory.getPath(), i);
+            matList.add(material);
+        }
+
+        int numMeshes = aiScene.mNumMeshes();
+        PointerBuffer aiMeshes = aiScene.mMeshes();
+        List<MeshData> meshList = new ArrayList<>();
+        for (int i = 0; i < numMeshes; i++) {
+            AIMesh aiMesh = AIMesh.create(aiMeshes.get(i));
+            MeshData meshData = processMesh(aiMesh, matList, i, modelBinData);
+            meshList.add(meshData);
+        }
+
+        var model = new ModelData(modelId, meshList, modelBinData.getVertexFilePath(), modelBinData.getIndexFilePath());
+
+        String outModelFile = modelPath.substring(0, modelPath.lastIndexOf('.')) + ".json";
+        Writer writer = new FileWriter(outModelFile);
+        var gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                .setPrettyPrinting().create();
+        gson.toJson(model, writer);
+        writer.flush();
+        writer.close();
+        Logger.info("Generated model file [{}]", outModelFile);
+
+        String outMaterialFile = modelPath.substring(0, modelPath.lastIndexOf('.')) + "_mat.json";
+        writer = new FileWriter(outMaterialFile);
+        gson.toJson(matList, writer);
+        writer.flush();
+        writer.close();
+        Logger.info("Generated materials file [{}]", outMaterialFile);
+
+        modelBinData.close();
+        aiReleaseImport(aiScene);
+        Logger.info("Generated vtx file [{}]", modelBinData.getVertexFilePath());
+        Logger.info("Generated idx file [{}]", modelBinData.getIndexFilePath());
+    }
+
+    private List<Integer> processIndices(AIMesh aiMesh) {
+        List<Integer> indices = new ArrayList<>();
+        int numFaces = aiMesh.mNumFaces();
+        AIFace.Buffer aiFaces = aiMesh.mFaces();
+        for (int i = 0; i < numFaces; i++) {
+            AIFace aiFace = aiFaces.get(i);
+            IntBuffer buffer = aiFace.mIndices();
+            while (buffer.remaining() > 0) {
+                indices.add(buffer.get());
+            }
+        }
+        return indices;
+    }
+
+    private MaterialData processMaterial(AIScene aiScene, AIMaterial aiMaterial, String modelName, String baseDir,
+            int pos)
+            throws IOException {
+        Vector4f diffuse = new Vector4f();
+        AIColor4D color = AIColor4D.create();
+
+        int result = aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0,
+                color);
+        if (result == aiReturn_SUCCESS) {
+            diffuse.set(color.r(), color.g(), color.b(), color.a());
+        }
+
+        String diffuseTexture = processTexture(aiScene, aiMaterial, baseDir, aiTextureType_DIFFUSE);
+        return new MaterialData(modelName + "-mat-" + pos, diffuseTexture, diffuse);
+    }
+
+    private MeshData processMesh(AIMesh aiMesh, List<MaterialData> materialList, int meshPosition,
+            ModelBinData modelBinData) throws IOException {
+        List<Float> vertices = processVertices(aiMesh);
+        List<Float> textCoords = processTextCoords(aiMesh);
+        List<Integer> indices = processIndices(aiMesh);
+
+        int vtxSize = vertices.size();
+        if (textCoords.isEmpty()) {
+            textCoords = Collections.nCopies((vtxSize / 3) * 2, 0.0f);
+        }
+
+        DataOutputStream vtxOutput = modelBinData.getVertexOutput();
+        int rows = vtxSize / 3;
+        int vtxInc = (vtxSize + textCoords.size()) * VulkanUtils.FLOAT_SIZE;
+        for (int row = 0; row < rows; row++) {
+            int startPos = row * 3;
+            int startTextCoord = row * 2;
+            vtxOutput.writeFloat(vertices.get(startPos));
+            vtxOutput.writeFloat(vertices.get(startPos + 1));
+            vtxOutput.writeFloat(vertices.get(startPos + 2));
+            vtxOutput.writeFloat(textCoords.get(startTextCoord));
+            vtxOutput.writeFloat(textCoords.get(startTextCoord + 1));
+        }
+
+        DataOutputStream idxOutput = modelBinData.getIndexOutput();
+        int idxSize = indices.size();
+        int idxInc = idxSize * VulkanUtils.INT_SIZE;
+        for (int idx = 0; idx < idxSize; idx++) {
+            idxOutput.writeInt(indices.get(idx));
+        }
+
+        // Add position to mesh id to ensure unique ids
+        String id = aiMesh.mName().dataString() + "_" + meshPosition;
+        int materialIdx = aiMesh.mMaterialIndex();
+        String materialId = "";
+        if (materialIdx >= 0 && materialIdx < materialList.size()) {
+            materialId = materialList.get(materialIdx).id();
+        }
+
+        var meshData = new MeshData(id, materialId, modelBinData.getVertexOffset(), vtxInc,
+                modelBinData.getIndexOffset(),
+                idxInc);
+
+        modelBinData.incVertexOffset(vtxInc);
+        modelBinData.incIndexOffset(idxInc);
+        return meshData;
+    }
+
+    private String processTexture(AIScene aiScene, AIMaterial aiMaterial, String baseDir, int textureType)
+            throws IOException {
+        String texturePath;
+        try (var stack = MemoryStack.stackPush()) {
+            int numEmbeddedTextures = aiScene.mNumTextures();
+            AIString aiTexturePath = AIString.calloc(stack);
+            aiGetMaterialTexture(aiMaterial, textureType, 0, aiTexturePath, (IntBuffer) null,
+                    null, null, null, null, null);
+            texturePath = aiTexturePath.dataString();
+            if (texturePath != null && !texturePath.isEmpty()) {
+                Matcher matcher = EMBED_TEXT_ID.matcher(texturePath);
+                int embeddedTextureIdx = matcher.matches() && matcher.groupCount() > 0
+                        ? Integer.parseInt(matcher.group(1))
+                        : -1;
+                if (embeddedTextureIdx >= 0 && embeddedTextureIdx < numEmbeddedTextures) {
+                    // Embedded texture
+                    var aiTexture = AITexture.create(aiScene.mTextures().get(embeddedTextureIdx));
+                    String baseFileName = aiTexture.mFilename().dataString() + ".png";
+                    texturePath = baseDir + "/" + baseFileName;
+                    Logger.info("Dumping texture file to [{}]", texturePath);
+                    var channel = FileChannel.open(Path.of(texturePath), StandardOpenOption.CREATE,
+                            StandardOpenOption.WRITE);
+                    channel.write(aiTexture.pcDataCompressed());
+                } else {
+                    texturePath = baseDir + "/" + new File(texturePath).getName();
+                }
+            }
+        }
+
+        return texturePath;
+    }
+
+    private List<Float> processVertices(AIMesh aiMesh) {
+        List<Float> vertices = new ArrayList<>();
+        AIVector3D.Buffer aiVertices = aiMesh.mVertices();
+        while (aiVertices.remaining() > 0) {
+            AIVector3D aiVertex = aiVertices.get();
+            vertices.add(aiVertex.x());
+            vertices.add(aiVertex.y());
+            vertices.add(aiVertex.z());
+        }
+        return vertices;
+    }
+}

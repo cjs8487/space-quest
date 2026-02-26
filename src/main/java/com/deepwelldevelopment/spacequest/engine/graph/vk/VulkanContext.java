@@ -5,6 +5,7 @@ import com.deepwelldevelopment.spacequest.engine.window.Window;
 
 public class VulkanContext {
 
+    private final DescAllocator descAllocator;
     private final Device device;
     private final Instance instance;
     private final PhysicalDevice physicalDevice;
@@ -20,9 +21,11 @@ public class VulkanContext {
         surface = new Surface(instance, physicalDevice, window);
         swapChain = new SwapChain(window, device, surface, engCfg.getRequestedImages(), engCfg.getVSync());
         pipelineCache = new PipelineCache(device);
+        descAllocator = new DescAllocator(physicalDevice, device);
     }
 
     public void cleanup() {
+        descAllocator.cleanup(device);
         pipelineCache.cleanup(device);
         swapChain.cleanup(device);
         surface.cleanup(instance);
@@ -49,6 +52,10 @@ public class VulkanContext {
 
     public PipelineCache getPipelineCache() {
         return pipelineCache;
+    }
+
+    public DescAllocator getDescAllocator() {
+        return descAllocator;
     }
 
     public void resize(Window window) {

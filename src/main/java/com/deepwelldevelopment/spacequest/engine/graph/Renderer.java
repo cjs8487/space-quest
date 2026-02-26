@@ -13,6 +13,7 @@ import org.lwjgl.vulkan.VkSemaphoreSubmitInfo;
 import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
+import com.deepwelldevelopment.spacequest.engine.InitData;
 import com.deepwelldevelopment.spacequest.engine.graph.scene.SceneRenderer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandBuffer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandPool;
@@ -22,6 +23,7 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.Semaphore;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.SwapChain;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
+import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
 
@@ -37,11 +39,13 @@ public class Renderer {
     private final SceneRenderer sceneRenderer;
     private final VulkanContext vulkanContext;
     private final ModelsCache modelsCache;
+    private final MaterialsCache materialsCache;
+    private final TextureCache textureCache;
     private int currentFrame;
     private boolean resize;
 
-    public Renderer(EngineContext context) {
-        vulkanContext = new VulkanContext(context.window());
+    public Renderer(EngineContext engineContext) {
+        vulkanContext = new VulkanContext(engineContext.window());
         currentFrame = 0;
         resize = false;
 
@@ -63,14 +67,20 @@ public class Renderer {
         for (int i = 0; i < numSwapchainImages; i++) {
             renderCompleteSemaphores[i] = new Semaphore(vulkanContext);
         }
-        sceneRenderer = new SceneRenderer(vulkanContext);
+        sceneRenderer = new SceneRenderer(vulkanContext, engineContext);
         modelsCache = new ModelsCache();
+        textureCache = new TextureCache();
+        materialsCache = new MaterialsCache();
     }
 
     public void cleanup() {
         vulkanContext.getDevice().waitIdle();
 
         sceneRenderer.cleanup(vulkanContext);
+
+        modelsCache.cleanup(vulkanContext);
+        textureCache.cleanup(vulkanContext);
+        materialsCache.cleanup(vulkanContext);
 
         Arrays.asList(renderCompleteSemaphores).forEach(i -> i.cleanup(vulkanContext));
         Arrays.asList(presentationCompleteSemaphores).forEach(i -> i.cleanup(vulkanContext));
@@ -84,10 +94,22 @@ public class Renderer {
         vulkanContext.cleanup();
     }
 
-    public void init(List<ModelData> models) {
+    public void init(InitData initData) {
+        List<MaterialData> materials = initData.materials();
+        Logger.debug("Loading {} material(s)", materials.size());
+        materialsCache.loadMaterials(vulkanContext, materials, textureCache, commandPools[0], graphicsQueue);
+        Logger.debug("Loaded {} material(s)", materials.size());
+
+        Logger.debug("Transitioning textures");
+        textureCache.transitionTexts(vulkanContext, commandPools[0], graphicsQueue);
+        Logger.debug("Textures transitioned");
+
+        List<ModelData> models = initData.models();
         Logger.debug("Loading {} model(s)", models.size());
         modelsCache.loadModels(vulkanContext, models, commandPools[0], graphicsQueue);
         Logger.debug("Loaded {} model(s)", models.size());
+
+        sceneRenderer.loadMaterials(vulkanContext, materialsCache, textureCache);
     }
 
     private void recordingStart(CommandPool pool, CommandBuffer buffer) {
@@ -115,7 +137,7 @@ public class Renderer {
             resize(engineContext);
             return;
         }
-        sceneRenderer.render(engineContext, vulkanContext, buffer, modelsCache, imageIndex);
+        sceneRenderer.render(engineContext, vulkanContext, buffer, modelsCache, materialsCache, imageIndex);
 
         recordingStop(buffer);
 
@@ -125,8 +147,8 @@ public class Renderer {
         currentFrame = (currentFrame + 1) % VulkanUtils.MAX_IN_FLIGHT;
     }
 
-    private void resize(EngineContext engCtx) {
-        Window window = engCtx.window();
+    private void resize(EngineContext engineContext) {
+        Window window = engineContext.window();
         if (window.getWidth() == 0 || window.getHeight() == 0) {
             return;
         }
@@ -145,8 +167,8 @@ public class Renderer {
         }
 
         VkExtent2D extent = vulkanContext.getSwapChain().getSwapChainExtent();
-        engCtx.scene().getProjection().resize(extent.width(), extent.height());
-        sceneRenderer.resize(vulkanContext);
+        engineContext.scene().getProjection().resize(extent.width(), extent.height());
+        sceneRenderer.resize(engineContext, vulkanContext);
     }
 
     private void submit(CommandBuffer buffer, int frame, int imageIndex) {

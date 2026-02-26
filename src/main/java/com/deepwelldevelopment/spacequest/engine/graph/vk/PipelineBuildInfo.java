@@ -11,6 +11,7 @@ public class PipelineBuildInfo {
     private final VkPipelineVertexInputStateCreateInfo vi;
     private int depthFormat;
     private PushConstRange[] pushConstantRanges;
+    private DescSetLayout[] descSetLayouts;
 
     public PipelineBuildInfo(ShaderModule[] shaderModules, VkPipelineVertexInputStateCreateInfo vi, int colorFormat) {
         this.shaderModules = shaderModules;
@@ -39,6 +40,10 @@ public class PipelineBuildInfo {
         return pushConstantRanges;
     }
 
+    public DescSetLayout[] getDescSetLayouts() {
+        return descSetLayouts;
+    }
+
     public PipelineBuildInfo setDepthFormat(int depthFormat) {
         this.depthFormat = depthFormat;
         return this;
@@ -46,6 +51,11 @@ public class PipelineBuildInfo {
 
     public PipelineBuildInfo setPushConstRanges(PushConstRange[] pushConstantRanges) {
         this.pushConstantRanges = pushConstantRanges;
+        return this;
+    }
+
+    public PipelineBuildInfo setDescSetLayouts(DescSetLayout[] descSetLayouts) {
+        this.descSetLayouts = descSetLayouts;
         return this;
     }
 }

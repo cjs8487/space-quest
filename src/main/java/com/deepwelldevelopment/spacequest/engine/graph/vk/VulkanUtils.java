@@ -17,6 +17,8 @@ import static org.lwjgl.vulkan.VK10.VK_EVENT_RESET;
 import static org.lwjgl.vulkan.VK10.VK_EVENT_SET;
 import static org.lwjgl.vulkan.VK10.VK_INCOMPLETE;
 import static org.lwjgl.vulkan.VK10.VK_MAX_MEMORY_TYPES;
+import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 import static org.lwjgl.vulkan.VK10.VK_NOT_READY;
 import static org.lwjgl.vulkan.VK10.VK_QUEUE_FAMILY_IGNORED;
 import static org.lwjgl.vulkan.VK10.VK_REMAINING_ARRAY_LAYERS;
@@ -25,9 +27,12 @@ import static org.lwjgl.vulkan.VK10.VK_SUCCESS;
 import static org.lwjgl.vulkan.VK10.VK_TIMEOUT;
 import static org.lwjgl.vulkan.VK13.vkCmdPipelineBarrier2;
 
+import java.nio.ByteBuffer;
 import java.util.Locale;
 
+import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.vulkan.VkCommandBuffer;
 import org.lwjgl.vulkan.VkDependencyInfo;
 import org.lwjgl.vulkan.VkImageMemoryBarrier2;
@@ -43,6 +48,7 @@ public class VulkanUtils {
     public static final int FLOAT_SIZE = 4;
     public static final int INT_SIZE = 4;
     public static final int MAT4X4_SIZE = 16 * FLOAT_SIZE;
+    public static final int VEC4_SIZE = 4 * FLOAT_SIZE;
 
     public static OSType getOS() {
         String os = System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH);
@@ -128,5 +134,23 @@ public class VulkanUtils {
             throw new RuntimeException("Failed to find suitable memory typ!");
         }
         return result;
+    }
+
+    public static void copyMatrixToBuffer(VulkanContext vkCtx, VulkanBuffer vkBuffer, Matrix4f matrix, int offset) {
+        long mappedMemory = vkBuffer.map(vkCtx);
+        ByteBuffer matrixBuffer = MemoryUtil.memByteBuffer(mappedMemory, (int) vkBuffer.getRequestedSize());
+        matrix.get(offset, matrixBuffer);
+        vkBuffer.unmap(vkCtx);
+    }
+
+    public static VulkanBuffer createHostVisibleBuff(VulkanContext vkCtx, long buffSize, int usage, String id,
+            DescSetLayout layout) {
+        var buff = new VulkanBuffer(vkCtx, buffSize, usage,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        Device device = vkCtx.getDevice();
+        DescSet descSet = vkCtx.getDescAllocator().addDescSet(device, id, layout);
+        descSet.setBuffer(device, buff, buff.getRequestedSize(), layout.getLayoutInfo().binding(),
+                layout.getLayoutInfo().descType());
+        return buff;
     }
 }
