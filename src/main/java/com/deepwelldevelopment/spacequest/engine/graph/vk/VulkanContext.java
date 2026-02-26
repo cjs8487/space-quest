@@ -18,7 +18,7 @@ public class VulkanContext {
         physicalDevice = PhysicalDevice.createPhysicalDevice(instance, engCfg.getPhysicalDeviceName());
         device = new Device(physicalDevice);
         surface = new Surface(instance, physicalDevice, window);
-        swapChain = new SwapChain(window, device, surface, engCfg.getRequestedImages(), engCfg.getVsync());
+        swapChain = new SwapChain(window, device, surface, engCfg.getRequestedImages(), engCfg.getVSync());
         pipelineCache = new PipelineCache(device);
     }
 
@@ -46,8 +46,16 @@ public class VulkanContext {
     public SwapChain getSwapChain() {
         return swapChain;
     }
-        
+
     public PipelineCache getPipelineCache() {
         return pipelineCache;
+    }
+
+    public void resize(Window window) {
+        swapChain.cleanup(device);
+        surface.cleanup(instance);
+        var engCfg = EngineConfig.getInstance();
+        surface = new Surface(instance, physicalDevice, window);
+        swapChain = new SwapChain(window, device, surface, engCfg.getRequestedImages(), engCfg.getVSync());
     }
 }

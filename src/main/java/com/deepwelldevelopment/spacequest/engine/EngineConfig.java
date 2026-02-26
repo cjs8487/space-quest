@@ -19,6 +19,9 @@ public class EngineConfig {
     private boolean vsync;
     private boolean debugShaders;
     private boolean shaderRecompilation;
+    private float fov;
+    private float zNear;
+    private float zFar;
 
     private EngineConfig() {
         var props = new Properties();
@@ -32,6 +35,9 @@ public class EngineConfig {
             vsync = Boolean.parseBoolean(props.getOrDefault("vsync", "false").toString());
             debugShaders = Boolean.parseBoolean(props.getOrDefault("debugShaders", "false").toString());
             shaderRecompilation = Boolean.parseBoolean(props.getOrDefault("shaderRecompilation", "false").toString());
+            fov = Float.parseFloat(props.getOrDefault("fov", 60.0f).toString());
+            zNear = Float.parseFloat(props.getOrDefault("zNear", 1.0f).toString());
+            zFar = Float.parseFloat(props.getOrDefault("zFar", 100.0f).toString());
         } catch (IOException e) {
             Logger.error("Could not read [{}] properties file", FILENAME, e);
         }
@@ -60,7 +66,7 @@ public class EngineConfig {
         return requestedImages;
     }
 
-    public boolean getVsync() {
+    public boolean getVSync() {
         return vsync;
     }
 
@@ -70,5 +76,17 @@ public class EngineConfig {
 
     public boolean isShaderRecompilation() {
         return shaderRecompilation;
+    }
+
+    public float getFov() {
+        return fov;
+    }
+
+    public float getZNear() {
+        return zNear;
+    }
+
+    public float getZFar() {
+        return zFar;
     }
 }

@@ -54,7 +54,11 @@ public class ModelsCache {
 
     private static TransferBuffer createVerticesBuffers(VulkanContext context, MeshData meshData) {
         float[] positions = meshData.positions();
-        int numElements = positions.length;
+        float[] texCoords = meshData.texCoords();
+        if (texCoords == null || texCoords.length == 0) {
+            texCoords = new float[(positions.length / 3) * 2];
+        }
+        int numElements = positions.length + texCoords.length;
         int bufferSize = numElements * VulkanUtils.FLOAT_SIZE;
 
         var srcBuffer = new VulkanBuffer(context, bufferSize,
@@ -70,9 +74,12 @@ public class ModelsCache {
         int rows = positions.length / 3;
         for (int row = 0; row < rows; row++) {
             int startPos = row * 3;
+            int startTex = row * 2;
             data.put(positions[startPos]);
             data.put(positions[startPos + 1]);
             data.put(positions[startPos + 2]);
+            data.put(texCoords[startTex]);
+            data.put(texCoords[startTex + 1]);
         }
 
         srcBuffer.unmap(context);

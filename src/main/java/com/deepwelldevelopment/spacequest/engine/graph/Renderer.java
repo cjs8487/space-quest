@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.VkCommandBufferSubmitInfo;
+import org.lwjgl.vulkan.VkExtent2D;
 import org.lwjgl.vulkan.VkSemaphoreSubmitInfo;
 import org.tinylog.Logger;
 
@@ -22,6 +23,7 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.SwapChain;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
+import com.deepwelldevelopment.spacequest.engine.window.Window;
 
 public class Renderer {
 
@@ -36,10 +38,12 @@ public class Renderer {
     private final VulkanContext vulkanContext;
     private final ModelsCache modelsCache;
     private int currentFrame;
+    private boolean resize;
 
     public Renderer(EngineContext context) {
         vulkanContext = new VulkanContext(context.window());
         currentFrame = 0;
+        resize = false;
 
         graphicsQueue = new Queue.GraphicsQueue(vulkanContext, 0);
         presentQueue = new Queue.PresentQueue(vulkanContext, 0);
@@ -95,7 +99,7 @@ public class Renderer {
         buffer.endRecording();
     }
 
-    public void render(EngineContext context) {
+    public void render(EngineContext engineContext) {
         SwapChain swapChain = vulkanContext.getSwapChain();
 
         waitForFence(currentFrame);
@@ -105,19 +109,44 @@ public class Renderer {
 
         recordingStart(pool, buffer);
 
-        int imageIndex = swapChain.acquireNextImage(vulkanContext.getDevice(),
-                presentationCompleteSemaphores[currentFrame]);
-        if (imageIndex < 0) {
+        int imageIndex;
+        if (resize || (imageIndex = swapChain.acquireNextImage(vulkanContext.getDevice(),
+                presentationCompleteSemaphores[currentFrame])) < 0) {
+            resize(engineContext);
             return;
         }
-        sceneRenderer.render(vulkanContext, buffer, modelsCache, imageIndex);
+        sceneRenderer.render(engineContext, vulkanContext, buffer, modelsCache, imageIndex);
 
         recordingStop(buffer);
 
         submit(buffer, currentFrame, imageIndex);
 
-        swapChain.presentImage(presentQueue, renderCompleteSemaphores[imageIndex], imageIndex);
+        resize = swapChain.presentImage(presentQueue, renderCompleteSemaphores[imageIndex], imageIndex);
         currentFrame = (currentFrame + 1) % VulkanUtils.MAX_IN_FLIGHT;
+    }
+
+    private void resize(EngineContext engCtx) {
+        Window window = engCtx.window();
+        if (window.getWidth() == 0 || window.getHeight() == 0) {
+            return;
+        }
+        resize = false;
+        vulkanContext.getDevice().waitIdle();
+
+        vulkanContext.resize(window);
+
+        Arrays.asList(renderCompleteSemaphores).forEach(i -> i.cleanup(vulkanContext));
+        Arrays.asList(presentationCompleteSemaphores).forEach(i -> i.cleanup(vulkanContext));
+        for (int i = 0; i < VulkanUtils.MAX_IN_FLIGHT; i++) {
+            presentationCompleteSemaphores[i] = new Semaphore(vulkanContext);
+        }
+        for (int i = 0; i < vulkanContext.getSwapChain().getNumImages(); i++) {
+            renderCompleteSemaphores[i] = new Semaphore(vulkanContext);
+        }
+
+        VkExtent2D extent = vulkanContext.getSwapChain().getSwapChainExtent();
+        engCtx.scene().getProjection().resize(extent.width(), extent.height());
+        sceneRenderer.resize(vulkanContext);
     }
 
     private void submit(CommandBuffer buffer, int frame, int imageIndex) {

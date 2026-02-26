@@ -1,6 +1,7 @@
 package com.deepwelldevelopment.spacequest.engine.graph.scene;
 
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_R32G32B32_SFLOAT;
+import static org.lwjgl.vulkan.VK10.VK_FORMAT_R32G32_SFLOAT;
 import static org.lwjgl.vulkan.VK10.VK_VERTEX_INPUT_RATE_VERTEX;
 
 import org.lwjgl.vulkan.VkPipelineVertexInputStateCreateInfo;
@@ -11,8 +12,9 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
 
 public class VertexBufferStruct {
 
-    private static final int NUMBER_OF_ATTRIBUTES = 1;
+    private static final int NUMBER_OF_ATTRIBUTES = 2;
     private static final int POSITION_COMPONENTS = 3;
+    private static final int TEX_COORD_COMPONENTS = 2;
 
     private final VkPipelineVertexInputStateCreateInfo vi;
     private final VkVertexInputAttributeDescription.Buffer viAttrBuffer;
@@ -32,9 +34,19 @@ public class VertexBufferStruct {
                 .format(VK_FORMAT_R32G32B32_SFLOAT)
                 .offset(offset);
 
+        // Texture coordinates
+        i++;
+        offset += POSITION_COMPONENTS * VulkanUtils.FLOAT_SIZE;
+        viAttrBuffer.get(i)
+                .binding(0)
+                .location(i)
+                .format(VK_FORMAT_R32G32_SFLOAT)
+                .offset(offset);
+
+        int stride = offset + TEX_COORD_COMPONENTS * VulkanUtils.FLOAT_SIZE;
         viBindings.get(0)
                 .binding(0)
-                .stride(POSITION_COMPONENTS * VulkanUtils.FLOAT_SIZE)
+                .stride(stride)
                 .inputRate(VK_VERTEX_INPUT_RATE_VERTEX);
 
         vi

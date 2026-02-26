@@ -42,6 +42,7 @@ public class VulkanUtils {
     public static final int MAX_IN_FLIGHT = 2;
     public static final int FLOAT_SIZE = 4;
     public static final int INT_SIZE = 4;
+    public static final int MAT4X4_SIZE = 16 * FLOAT_SIZE;
 
     public static OSType getOS() {
         String os = System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH);
