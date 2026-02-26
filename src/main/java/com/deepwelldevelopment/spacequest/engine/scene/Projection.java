@@ -35,6 +35,6 @@ public class Projection {
 
     public void resize(int width, int height) {
         this.projectionMatrix.identity();
-        this.projectionMatrix.perspective(fov, (float) width / height, zNear, zFar);
+        this.projectionMatrix.perspective(fov, (float) width / height, zNear, zFar, true);
     }
 }
