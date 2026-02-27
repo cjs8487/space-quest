@@ -28,6 +28,8 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
 import com.deepwelldevelopment.spacequest.engine.model.MeshData;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
+import com.deepwelldevelopment.spacequest.engine.model.ModelDataRegistry;
+import com.deepwelldevelopment.spacequest.engine.model.ProgrammaticModel;
 
 public class ModelsCache {
     private final Map<String, VulkanModel> modelsMap;
@@ -95,10 +97,23 @@ public class ModelsCache {
                 VulkanModel vulkanModel = new VulkanModel(modelData.id());
                 modelsMap.put(vulkanModel.getId(), vulkanModel);
 
-                DataInputStream vtxInput = new DataInputStream(
-                        new BufferedInputStream(new FileInputStream(modelData.vertexPath())));
-                DataInputStream idxInput = new DataInputStream(
-                        new BufferedInputStream(new FileInputStream(modelData.indexPath())));
+                // Check if this is a programmatic model
+                boolean isProgrammatic = modelData.vertexPath().startsWith("memory://");
+
+                DataInputStream vtxInput;
+                DataInputStream idxInput;
+
+                if (isProgrammatic) {
+                    String modelId = modelData.id();
+                    vtxInput = ModelDataRegistry.getVertexInputStream(modelId);
+                    idxInput = ModelDataRegistry.getIndexInputStream(modelId);
+                } else {
+                    vtxInput = new DataInputStream(
+                            new BufferedInputStream(new FileInputStream(modelData.vertexPath())));
+                    idxInput = new DataInputStream(
+                            new BufferedInputStream(new FileInputStream(modelData.indexPath())));
+                }
+
                 // Transform meshes loading their data into GPU buffers
                 for (MeshData meshData : modelData.meshes()) {
                     TransferBuffer verticesBuffers = createVerticesBuffers(context, meshData, vtxInput);
@@ -113,6 +128,12 @@ public class ModelsCache {
                             meshData.materialId());
                     vulkanModel.getMeshes().add(vulkanMesh);
                 }
+
+                // Close streams if they're file-based
+                if (!isProgrammatic) {
+                    vtxInput.close();
+                    idxInput.close();
+                }
             }
 
             cmd.endRecording();
@@ -123,6 +144,12 @@ public class ModelsCache {
         } catch (Exception excp) {
             throw new RuntimeException(excp);
         }
+    }
+
+    public void loadProgrammaticModel(VulkanContext context, ProgrammaticModel programmaticModel,
+            CommandPool commandPool, Queue queue) {
+        ModelData modelData = programmaticModel.toModelData();
+        loadModels(context, List.of(modelData), commandPool, queue);
     }
 
     public void cleanup(VulkanContext context) {

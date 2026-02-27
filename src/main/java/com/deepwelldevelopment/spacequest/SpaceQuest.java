@@ -20,9 +20,9 @@ import com.deepwelldevelopment.spacequest.engine.EngineContext;
 import com.deepwelldevelopment.spacequest.engine.InitData;
 import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
-import com.deepwelldevelopment.spacequest.engine.model.ModelLoader;
+import com.deepwelldevelopment.spacequest.engine.model.VoxelMaterialManager;
+import com.deepwelldevelopment.spacequest.engine.model.VoxelModelFactory;
 import com.deepwelldevelopment.spacequest.engine.scene.Camera;
-import com.deepwelldevelopment.spacequest.engine.scene.Entity;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.KeyboardInput;
 import com.deepwelldevelopment.spacequest.engine.window.MouseInput;
@@ -37,13 +37,22 @@ public class SpaceQuest {
         Scene scene = engineContext.scene();
         List<ModelData> models = new ArrayList<>();
 
-        ModelData sponzaModel = ModelLoader.loadModel("resources/models/sponza/Sponza.json");
-        models.add(sponzaModel);
-        Entity sponzaEntity = new Entity("SponzaEntity", sponzaModel.id(), new Vector3f(0.0f, 0.0f, 0.0f));
-        scene.addEntity(sponzaEntity);
+        // Initialize voxel materials
+        VoxelMaterialManager.initialize();
 
-        List<MaterialData> materials = new ArrayList<>(
-                ModelLoader.loadMaterials("resources/models/sponza/Sponza_mat.json"));
+        // Create voxel models using factory
+        List<VoxelModelFactory.VoxelModelData> voxelModels = new ArrayList<>();
+
+        // Add individual blocks
+        voxelModels.add(VoxelModelFactory.createBlock("stone_block", "stone_material", new Vector3f(5.0f, 1.0f, 0.0f)));
+        voxelModels.add(VoxelModelFactory.createBlock("wood_block", "wood_material", new Vector3f(7.0f, 1.0f, 0.0f)));
+
+        // Add all voxel models to scene
+        VoxelModelFactory.addVoxelModelsToScene(scene, models, voxelModels);
+
+        // Load existing materials and add voxel materials
+        List<MaterialData> materials = new ArrayList<>();
+        materials.addAll(VoxelMaterialManager.getAllMaterials());
 
         Camera camera = scene.getCamera();
         camera.setPosition(0.0f, 5.0f, 0.0f);
