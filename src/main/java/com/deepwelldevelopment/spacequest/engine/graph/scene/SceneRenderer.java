@@ -122,7 +122,7 @@ public class SceneRenderer {
 
     public SceneRenderer(VulkanContext vulkanContext, EngineContext engineContext) {
         clrValueColor = VkClearValue.calloc().color(
-                c -> c.float32(0, 0.0f).float32(1, 0.0f).float32(2, 0.0f).float32(3, 0.0f));
+                c -> c.float32(0, 0.2f).float32(1, 0.2f).float32(2, 0.8f).float32(3, 0.0f));
         clrValueDepth = VkClearValue.calloc().color(c -> c.float32(0, 1.0f));
         attDepth = createDepthAttachments(vulkanContext);
         attInfoColor = createColorAttachmentsInfo(vulkanContext, clrValueColor);

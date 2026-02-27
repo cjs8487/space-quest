@@ -13,8 +13,9 @@ import org.lwjgl.vulkan.VkSemaphoreSubmitInfo;
 import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
-import com.deepwelldevelopment.spacequest.engine.InitData;
 import com.deepwelldevelopment.spacequest.engine.graph.scene.SceneRenderer;
+import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
+import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandBuffer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandPool;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.Fence;
@@ -23,9 +24,8 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.Semaphore;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.SwapChain;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
-import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
-import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
+import com.deepwelldevelopment.world.World;
 
 public class Renderer {
 
@@ -93,22 +93,22 @@ public class Renderer {
         vulkanContext.cleanup();
     }
 
-    public void init(InitData initData) {
-        List<MaterialData> materials = initData.materials();
-        Logger.debug("Loading {} material(s)", materials.size());
-        materialsCache.loadMaterials(vulkanContext, materials, textureCache, commandPools[0], graphicsQueue);
-        Logger.debug("Loaded {} material(s)", materials.size());
-
+    public void init(World world) {
         Logger.debug("Transitioning textures");
         textureCache.transitionTexts(vulkanContext, commandPools[0], graphicsQueue);
         Logger.debug("Textures transitioned");
 
-        List<ModelData> models = initData.models();
-        Logger.debug("Loading {} model(s)", models.size());
-        modelsCache.loadModels(vulkanContext, models, commandPools[0], graphicsQueue);
-        Logger.debug("Loaded {} model(s)", models.size());
-
         sceneRenderer.loadMaterials(vulkanContext, materialsCache, textureCache);
+    }
+
+    public void loadModels(List<ModelData> models) {
+        if (!models.isEmpty()) {
+            modelsCache.loadModels(vulkanContext, models, commandPools[0], graphicsQueue);
+        }
+    }
+
+    public void loadMaterials(List<MaterialData> materials) {
+        materialsCache.loadMaterials(vulkanContext, materials, textureCache, commandPools[0], graphicsQueue);
     }
 
     private void recordingStart(CommandPool cmdPool, CommandBuffer cmdBuffer) {

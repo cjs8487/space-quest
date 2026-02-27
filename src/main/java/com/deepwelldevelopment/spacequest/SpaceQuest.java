@@ -12,12 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.joml.Vector2f;
-import org.joml.Vector3f;
 import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.engine.Engine;
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
-import com.deepwelldevelopment.spacequest.engine.InitData;
+import com.deepwelldevelopment.spacequest.engine.graph.Renderer;
 import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 import com.deepwelldevelopment.spacequest.engine.model.VoxelMaterialManager;
@@ -27,38 +26,53 @@ import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.KeyboardInput;
 import com.deepwelldevelopment.spacequest.engine.window.MouseInput;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
+import com.deepwelldevelopment.world.World;
+import com.deepwelldevelopment.world.chunk.Chunk;
 
 public class SpaceQuest {
 
     private static final float MOUSE_SENSITIVITY = 0.1f;
     private static final float MOVEMENT_SPEED = 0.01f;
 
-    public InitData init(EngineContext engineContext) {
+    private World world;
+
+    public World init(EngineContext engineContext, Renderer renderer) {
+        world = new World();
+        world.generate();
+
         Scene scene = engineContext.scene();
         List<ModelData> models = new ArrayList<>();
 
         // Initialize voxel materials
         VoxelMaterialManager.initialize();
 
-        // Create voxel models using factory
+        // Create voxel models from world chunks
         List<VoxelModelFactory.VoxelModelData> voxelModels = new ArrayList<>();
 
-        // Add individual blocks
-        voxelModels.add(VoxelModelFactory.createBlock("stone_block", "stone_material", new Vector3f(5.0f, 1.0f, 0.0f)));
-        voxelModels.add(VoxelModelFactory.createBlock("wood_block", "wood_material", new Vector3f(7.0f, 1.0f, 0.0f)));
+        for (Chunk chunk : world.getChunks()) {
+            if (chunk != null) {
+                voxelModels.addAll(chunk.getChunkMesh().getVoxelModels());
+            }
+        }
 
         // Add all voxel models to scene
         VoxelModelFactory.addVoxelModelsToScene(scene, models, voxelModels);
+
+        // Load models into renderer
+        renderer.loadModels(models);
 
         // Load existing materials and add voxel materials
         List<MaterialData> materials = new ArrayList<>();
         materials.addAll(VoxelMaterialManager.getAllMaterials());
 
+        // Load materials into the renderer's materials cache
+        renderer.loadMaterials(materials);
+
         Camera camera = scene.getCamera();
         camera.setPosition(0.0f, 5.0f, 0.0f);
         camera.setRotation((float) Math.toRadians(20.0f), (float) Math.toRadians(90.f));
 
-        return new InitData(models, materials);
+        return world;
     }
 
     public void input(EngineContext engineContext, long deltaTime) {
