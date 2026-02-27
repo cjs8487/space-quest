@@ -8,26 +8,19 @@ import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_W;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.joml.Vector2f;
 import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.engine.Engine;
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
 import com.deepwelldevelopment.spacequest.engine.graph.Renderer;
-import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
-import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 import com.deepwelldevelopment.spacequest.engine.model.VoxelMaterialManager;
-import com.deepwelldevelopment.spacequest.engine.model.VoxelModelFactory;
 import com.deepwelldevelopment.spacequest.engine.scene.Camera;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.KeyboardInput;
 import com.deepwelldevelopment.spacequest.engine.window.MouseInput;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
 import com.deepwelldevelopment.world.World;
-import com.deepwelldevelopment.world.chunk.Chunk;
 
 public class SpaceQuest {
 
@@ -40,36 +33,10 @@ public class SpaceQuest {
         world = new World();
         world.generate();
 
-        Scene scene = engineContext.scene();
-        List<ModelData> models = new ArrayList<>();
-
-        // Initialize voxel materials
         VoxelMaterialManager.initialize();
 
-        // Create voxel models from world chunks
-        List<VoxelModelFactory.VoxelModelData> voxelModels = new ArrayList<>();
-
-        for (Chunk chunk : world.getChunks()) {
-            if (chunk != null) {
-                voxelModels.addAll(chunk.getChunkMesh().getVoxelModels());
-            }
-        }
-
-        // Add all voxel models to scene
-        VoxelModelFactory.addVoxelModelsToScene(scene, models, voxelModels);
-
-        // Load models into renderer
-        renderer.loadModels(models);
-
-        // Load existing materials and add voxel materials
-        List<MaterialData> materials = new ArrayList<>();
-        materials.addAll(VoxelMaterialManager.getAllMaterials());
-
-        // Load materials into the renderer's materials cache
-        renderer.loadMaterials(materials);
-
-        Camera camera = scene.getCamera();
-        camera.setPosition(0.0f, 5.0f, 0.0f);
+        Camera camera = engineContext.scene().getCamera();
+        camera.setPosition(0.0f, 20.0f, 0.0f);
         camera.setRotation((float) Math.toRadians(20.0f), (float) Math.toRadians(90.f));
 
         return world;

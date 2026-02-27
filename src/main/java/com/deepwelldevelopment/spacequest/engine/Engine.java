@@ -17,7 +17,7 @@ public class Engine {
         this.engineContext = new EngineContext(window, new Scene(window));
         this.renderer = new Renderer(engineContext);
         var world = spaceQuest.init(engineContext, renderer);
-        renderer.init(world);
+        renderer.init(this.engineContext, world);
     }
 
     private void cleanup() {

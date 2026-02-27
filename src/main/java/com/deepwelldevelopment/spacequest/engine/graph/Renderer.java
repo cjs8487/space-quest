@@ -3,6 +3,7 @@ package com.deepwelldevelopment.spacequest.engine.graph;
 import static org.lwjgl.vulkan.VK13.VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
 import static org.lwjgl.vulkan.VK13.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -16,6 +17,9 @@ import com.deepwelldevelopment.spacequest.engine.EngineContext;
 import com.deepwelldevelopment.spacequest.engine.graph.scene.SceneRenderer;
 import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
+import com.deepwelldevelopment.spacequest.engine.model.VoxelMaterialManager;
+import com.deepwelldevelopment.spacequest.engine.model.VoxelModelFactory;
+import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandBuffer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandPool;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.Fence;
@@ -26,6 +30,7 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
 import com.deepwelldevelopment.world.World;
+import com.deepwelldevelopment.world.chunk.Chunk;
 
 public class Renderer {
 
@@ -93,22 +98,32 @@ public class Renderer {
         vulkanContext.cleanup();
     }
 
-    public void init(World world) {
+    public void init(EngineContext engineContext, World world) {
+        Scene scene = engineContext.scene();
+        List<ModelData> models = new ArrayList<>();
+        // Create voxel models from world chunks
+        List<VoxelModelFactory.VoxelModelData> voxelModels = new ArrayList<>();
+
+        for (Chunk chunk : world.getChunks()) {
+            if (chunk != null) {
+                voxelModels.addAll(chunk.getChunkMesh().getVoxelModels());
+            }
+        }
+
+        // Add all voxel models to scene
+        VoxelModelFactory.addVoxelModelsToScene(scene, models, voxelModels);
+
+        modelsCache.loadModels(vulkanContext, models, commandPools[0], graphicsQueue);
+
         Logger.debug("Transitioning textures");
         textureCache.transitionTexts(vulkanContext, commandPools[0], graphicsQueue);
         Logger.debug("Textures transitioned");
 
-        sceneRenderer.loadMaterials(vulkanContext, materialsCache, textureCache);
-    }
-
-    public void loadModels(List<ModelData> models) {
-        if (!models.isEmpty()) {
-            modelsCache.loadModels(vulkanContext, models, commandPools[0], graphicsQueue);
-        }
-    }
-
-    public void loadMaterials(List<MaterialData> materials) {
+        List<MaterialData> materials = new ArrayList<>();
+        materials.addAll(VoxelMaterialManager.getAllMaterials());
         materialsCache.loadMaterials(vulkanContext, materials, textureCache, commandPools[0], graphicsQueue);
+
+        sceneRenderer.loadMaterials(vulkanContext, materialsCache, textureCache);
     }
 
     private void recordingStart(CommandPool cmdPool, CommandBuffer cmdBuffer) {
