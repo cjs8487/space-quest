@@ -2,9 +2,10 @@ package com.deepwelldevelopment.spacequest;
 
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_UP;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_W;
 
 import java.util.ArrayList;
@@ -68,16 +69,22 @@ public class SpaceQuest {
         } else if (ki.keyPressed(GLFW_KEY_D)) {
             camera.moveRight(move);
         }
-        if (ki.keyPressed(GLFW_KEY_UP)) {
+        if (ki.keyPressed(GLFW_KEY_SPACE)) {
             camera.moveUp(move);
-        } else if (ki.keyPressed(GLFW_KEY_DOWN)) {
+        } else if (ki.keyPressed(GLFW_KEY_LEFT_SHIFT)) {
             camera.moveDown(move);
         }
 
+        if (ki.keyPressed(GLFW_KEY_ESCAPE)) {
+            window.getMouseInput().toggleMouseLock();
+        }
+
         MouseInput mi = window.getMouseInput();
-        Vector2f deltaPos = mi.getDeltaPos();
-        camera.addRotation((float) Math.toRadians(deltaPos.y * MOUSE_SENSITIVITY),
-                (float) Math.toRadians(deltaPos.x * MOUSE_SENSITIVITY));
+        if (mi.isMouseLocked()) {
+            Vector2f deltaPos = mi.getDeltaPos();
+            camera.addRotation((float) Math.toRadians(deltaPos.y * MOUSE_SENSITIVITY),
+                    (float) Math.toRadians(deltaPos.x * MOUSE_SENSITIVITY));
+        }
     }
 
     public void update(EngineContext engineContext, long deltaTime) {
