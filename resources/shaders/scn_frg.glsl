@@ -1,6 +1,7 @@
 #version 450
 
-const int MAX_TEXTURES = 100;
+// Keep in sync manually with Java code
+const int MAX_TEXTURES = 80;
 
 layout(location = 0) in vec2 inTexCoords;
 
@@ -13,13 +14,13 @@ struct Material {
     uint padding[2];
 };
 
-layout(set = 1, binding = 0) readonly buffer MaterialUniform {
+layout(set = 2, binding = 0) readonly buffer MaterialUniform {
     Material materials[];
 } matUniform;
 
-layout(set = 2, binding = 0) uniform sampler2D texSampler[MAX_TEXTURES];
+layout(set = 3, binding = 0) uniform sampler2D texSampler[MAX_TEXTURES];
 
-layout(push_constant) uniform PushConstants {
+layout(push_constant) uniform pc {
     layout(offset = 64) uint materialIndex;
 } push_constants;
 

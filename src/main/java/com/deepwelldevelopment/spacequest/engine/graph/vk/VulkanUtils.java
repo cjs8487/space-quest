@@ -153,4 +153,21 @@ public class VulkanUtils {
                 layout.getLayoutInfo().descType());
         return buff;
     }
+
+    public static VulkanBuffer[] createHostVisibleBuffs(VulkanContext vkCtx, long buffSize, int numBuffs, int usage,
+            String id, DescSetLayout layout) {
+        DescAllocator descAllocator = vkCtx.getDescAllocator();
+        Device device = vkCtx.getDevice();
+        VulkanBuffer[] result = new VulkanBuffer[numBuffs];
+        descAllocator.addDescSets(device, id, numBuffs, layout);
+        DescSetLayout.LayoutInfo layoutInfo = layout.getLayoutInfo();
+        for (int i = 0; i < numBuffs; i++) {
+            result[i] = new VulkanBuffer(vkCtx, buffSize, usage,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            DescSet descSet = descAllocator.getDescSet(id, i);
+            descSet.setBuffer(device, result[i], result[i].getRequestedSize(), layoutInfo.binding(),
+                    layoutInfo.descType());
+        }
+        return result;
+    }
 }

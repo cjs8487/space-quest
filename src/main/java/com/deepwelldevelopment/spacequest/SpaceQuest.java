@@ -1,8 +1,16 @@
 package com.deepwelldevelopment.spacequest;
 
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_UP;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_W;
+
 import java.util.ArrayList;
 import java.util.List;
 
+import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.tinylog.Logger;
 
@@ -12,40 +20,67 @@ import com.deepwelldevelopment.spacequest.engine.InitData;
 import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 import com.deepwelldevelopment.spacequest.engine.model.ModelLoader;
+import com.deepwelldevelopment.spacequest.engine.scene.Camera;
 import com.deepwelldevelopment.spacequest.engine.scene.Entity;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
+import com.deepwelldevelopment.spacequest.engine.window.KeyboardInput;
+import com.deepwelldevelopment.spacequest.engine.window.MouseInput;
+import com.deepwelldevelopment.spacequest.engine.window.Window;
 
 public class SpaceQuest {
 
-    private final Vector3f rotatingAngle = new Vector3f(1, 1, 1);
-    private float angle = 0.0f;
-    private Entity cubeEntity;
+    private static final float MOUSE_SENSITIVITY = 0.1f;
+    private static final float MOVEMENT_SPEED = 0.01f;
 
     public InitData init(EngineContext engineContext) {
         Scene scene = engineContext.scene();
         List<ModelData> models = new ArrayList<>();
 
-        ModelData cubeModel = ModelLoader.loadModel("resources/models/cube/cube.json");
-        models.add(cubeModel);
-        cubeEntity = new Entity("CubeEntity", cubeModel.id(), new Vector3f(0.0f, 0.0f, -2.0f));
-        scene.addEntity(cubeEntity);
+        ModelData sponzaModel = ModelLoader.loadModel("resources/models/sponza/Sponza.json");
+        models.add(sponzaModel);
+        Entity sponzaEntity = new Entity("SponzaEntity", sponzaModel.id(), new Vector3f(0.0f, 0.0f, 0.0f));
+        scene.addEntity(sponzaEntity);
 
         List<MaterialData> materials = new ArrayList<>(
-                ModelLoader.loadMaterials("resources/models/cube/cube_mat.json"));
+                ModelLoader.loadMaterials("resources/models/sponza/Sponza_mat.json"));
+
+        Camera camera = scene.getCamera();
+        camera.setPosition(0.0f, 5.0f, 0.0f);
+        camera.setRotation((float) Math.toRadians(20.0f), (float) Math.toRadians(90.f));
 
         return new InitData(models, materials);
     }
 
     public void input(EngineContext engineContext, long deltaTime) {
+        Scene scene = engineContext.scene();
+        Window window = engineContext.window();
+
+        KeyboardInput ki = window.getKeyboardInput();
+        float move = deltaTime * MOVEMENT_SPEED;
+        Camera camera = scene.getCamera();
+        if (ki.keyPressed(GLFW_KEY_W)) {
+            camera.moveForward(move);
+        } else if (ki.keyPressed(GLFW_KEY_S)) {
+            camera.moveBackwards(move);
+        }
+        if (ki.keyPressed(GLFW_KEY_A)) {
+            camera.moveLeft(move);
+        } else if (ki.keyPressed(GLFW_KEY_D)) {
+            camera.moveRight(move);
+        }
+        if (ki.keyPressed(GLFW_KEY_UP)) {
+            camera.moveUp(move);
+        } else if (ki.keyPressed(GLFW_KEY_DOWN)) {
+            camera.moveDown(move);
+        }
+
+        MouseInput mi = window.getMouseInput();
+        Vector2f deltaPos = mi.getDeltaPos();
+        camera.addRotation((float) Math.toRadians(deltaPos.y * MOUSE_SENSITIVITY),
+                (float) Math.toRadians(deltaPos.x * MOUSE_SENSITIVITY));
     }
 
     public void update(EngineContext engineContext, long deltaTime) {
-        angle += 1.0f;
-        if (angle >= 360.0f) {
-            angle = angle - 360.0f;
-        }
-        cubeEntity.getRotation().identity().rotateAxis((float) Math.toRadians(angle), rotatingAngle);
-        cubeEntity.updateModelMatrix();
     }
 
     public void cleanup() {

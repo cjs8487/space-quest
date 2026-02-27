@@ -34,20 +34,19 @@ public class Renderer {
     private final Fence[] fences;
     private final Queue.GraphicsQueue graphicsQueue;
     private final Semaphore[] presentationCompleteSemaphores;
+    private final MaterialsCache materialsCache;
+    private final ModelsCache modelsCache;
     private final Queue.PresentQueue presentQueue;
     private final Semaphore[] renderCompleteSemaphores;
     private final SceneRenderer sceneRenderer;
-    private final VulkanContext vulkanContext;
-    private final ModelsCache modelsCache;
-    private final MaterialsCache materialsCache;
     private final TextureCache textureCache;
+    private final VulkanContext vulkanContext;
     private int currentFrame;
     private boolean resize;
 
     public Renderer(EngineContext engineContext) {
         vulkanContext = new VulkanContext(engineContext.window());
         currentFrame = 0;
-        resize = false;
 
         graphicsQueue = new Queue.GraphicsQueue(vulkanContext, 0);
         presentQueue = new Queue.PresentQueue(vulkanContext, 0);
@@ -56,17 +55,18 @@ public class Renderer {
         commandBuffers = new CommandBuffer[VulkanUtils.MAX_IN_FLIGHT];
         fences = new Fence[VulkanUtils.MAX_IN_FLIGHT];
         presentationCompleteSemaphores = new Semaphore[VulkanUtils.MAX_IN_FLIGHT];
-        int numSwapchainImages = vulkanContext.getSwapChain().getNumImages();
-        renderCompleteSemaphores = new Semaphore[numSwapchainImages];
+        int numSwapChainImages = vulkanContext.getSwapChain().getNumImages();
+        renderCompleteSemaphores = new Semaphore[numSwapChainImages];
         for (int i = 0; i < VulkanUtils.MAX_IN_FLIGHT; i++) {
             commandPools[i] = new CommandPool(vulkanContext, graphicsQueue.getQueueFamilyIndex(), false);
             commandBuffers[i] = new CommandBuffer(vulkanContext, commandPools[i], true, true);
-            presentationCompleteSemaphores[i] = new Semaphore(vulkanContext);
             fences[i] = new Fence(vulkanContext, true);
+            presentationCompleteSemaphores[i] = new Semaphore(vulkanContext);
         }
-        for (int i = 0; i < numSwapchainImages; i++) {
+        for (int i = 0; i < numSwapChainImages; i++) {
             renderCompleteSemaphores[i] = new Semaphore(vulkanContext);
         }
+        resize = false;
         sceneRenderer = new SceneRenderer(vulkanContext, engineContext);
         modelsCache = new ModelsCache();
         textureCache = new TextureCache();
@@ -85,10 +85,9 @@ public class Renderer {
         Arrays.asList(renderCompleteSemaphores).forEach(i -> i.cleanup(vulkanContext));
         Arrays.asList(presentationCompleteSemaphores).forEach(i -> i.cleanup(vulkanContext));
         Arrays.asList(fences).forEach(i -> i.cleanup(vulkanContext));
-        for (int i = 0; i < commandBuffers.length; i++) {
-            var pool = commandPools[i];
-            commandBuffers[i].cleanup(vulkanContext, pool);
-            pool.cleanup(vulkanContext);
+        for (int i = 0; i < commandPools.length; i++) {
+            commandBuffers[i].cleanup(vulkanContext, commandPools[i]);
+            commandPools[i].cleanup(vulkanContext);
         }
 
         vulkanContext.cleanup();
@@ -112,44 +111,47 @@ public class Renderer {
         sceneRenderer.loadMaterials(vulkanContext, materialsCache, textureCache);
     }
 
-    private void recordingStart(CommandPool pool, CommandBuffer buffer) {
-        pool.reset(vulkanContext);
-        buffer.beginRecording();
+    private void recordingStart(CommandPool cmdPool, CommandBuffer cmdBuffer) {
+        cmdPool.reset(vulkanContext);
+        cmdBuffer.beginRecording();
     }
 
-    private void recordingStop(CommandBuffer buffer) {
-        buffer.endRecording();
+    private void recordingStop(CommandBuffer cmdBuffer) {
+        cmdBuffer.endRecording();
     }
 
-    public void render(EngineContext engineContext) {
+    public void render(EngineContext engCtx) {
         SwapChain swapChain = vulkanContext.getSwapChain();
 
         waitForFence(currentFrame);
 
-        var pool = commandPools[currentFrame];
-        var buffer = commandBuffers[currentFrame];
+        var cmdPool = commandPools[currentFrame];
+        var commandBuffer = commandBuffers[currentFrame];
 
-        recordingStart(pool, buffer);
+        recordingStart(cmdPool, commandBuffer);
 
         int imageIndex;
         if (resize || (imageIndex = swapChain.acquireNextImage(vulkanContext.getDevice(),
                 presentationCompleteSemaphores[currentFrame])) < 0) {
-            resize(engineContext);
+            resize(engCtx);
             return;
         }
-        sceneRenderer.render(engineContext, vulkanContext, buffer, modelsCache, materialsCache, imageIndex);
 
-        recordingStop(buffer);
+        sceneRenderer.render(engCtx, vulkanContext, commandBuffer, modelsCache, materialsCache, imageIndex,
+                currentFrame);
 
-        submit(buffer, currentFrame, imageIndex);
+        recordingStop(commandBuffer);
+
+        submit(commandBuffer, currentFrame, imageIndex);
 
         resize = swapChain.presentImage(presentQueue, renderCompleteSemaphores[imageIndex], imageIndex);
+
         currentFrame = (currentFrame + 1) % VulkanUtils.MAX_IN_FLIGHT;
     }
 
     private void resize(EngineContext engineContext) {
         Window window = engineContext.window();
-        if (window.getWidth() == 0 || window.getHeight() == 0) {
+        if (window.getWidth() == 0 && window.getHeight() == 0) {
             return;
         }
         resize = false;
@@ -171,27 +173,27 @@ public class Renderer {
         sceneRenderer.resize(engineContext, vulkanContext);
     }
 
-    private void submit(CommandBuffer buffer, int frame, int imageIndex) {
+    private void submit(CommandBuffer cmdBuff, int currentFrame, int imageIndex) {
         try (var stack = MemoryStack.stackPush()) {
-            var fence = fences[frame];
+            var fence = fences[currentFrame];
             fence.reset(vulkanContext);
-            var commands = VkCommandBufferSubmitInfo.calloc(1, stack)
+            var cmds = VkCommandBufferSubmitInfo.calloc(1, stack)
                     .sType$Default()
-                    .commandBuffer(buffer.getVkCommandBuffer());
+                    .commandBuffer(cmdBuff.getVkCommandBuffer());
             VkSemaphoreSubmitInfo.Buffer waitSemaphores = VkSemaphoreSubmitInfo.calloc(1, stack)
                     .sType$Default()
                     .stageMask(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT)
-                    .semaphore(presentationCompleteSemaphores[frame].getVkSemaphore());
+                    .semaphore(presentationCompleteSemaphores[currentFrame].getVkSemaphore());
             VkSemaphoreSubmitInfo.Buffer signalSemaphores = VkSemaphoreSubmitInfo.calloc(1, stack)
                     .sType$Default()
                     .stageMask(VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT)
                     .semaphore(renderCompleteSemaphores[imageIndex].getVkSemaphore());
-            graphicsQueue.submit(commands, waitSemaphores, signalSemaphores, fence);
+            graphicsQueue.submit(cmds, waitSemaphores, signalSemaphores, fence);
         }
     }
 
-    private void waitForFence(int frame) {
-        var fence = fences[frame];
+    private void waitForFence(int currentFrame) {
+        var fence = fences[currentFrame];
         fence.fenceWait(vulkanContext);
     }
 }

@@ -9,12 +9,16 @@ layout(set = 0, binding = 0) uniform ProjUniform {
     mat4 matrix;
 } projUniform;
 
-layout(push_constant) uniform matrices {
+layout(set = 1, binding = 0) uniform ViewUniform {
+    mat4 matrix;
+} viewUniform;
+
+layout(push_constant) uniform pc {
     mat4 modelMatrix;
 } push_constants;
 
 void main()
 {
-    gl_Position = projUniform.matrix * push_constants.modelMatrix * vec4(inPos, 1.0);
+    gl_Position   = projUniform.matrix * viewUniform.matrix * push_constants.modelMatrix * vec4(inPos, 1);
     outTexCoords = inTexCoords;
 }
