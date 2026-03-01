@@ -18,7 +18,7 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.Texture;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 
 public class TextureCache {
-    public static final int MAX_TEXTURES = 80;
+    public static final int MAX_TEXTURES = 16;
     private final IndexedLinkedHashMap<String, Texture> textureMap;
 
     public TextureCache() {

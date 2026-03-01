@@ -94,6 +94,25 @@ public class ModelsCache {
             cmd.beginRecording();
 
             for (ModelData modelData : models) {
+                // Clean up existing model if it exists to prevent memory leaks
+                VulkanModel existingModel = modelsMap.get(modelData.id());
+                if (existingModel != null) {
+                    existingModel.cleanup(context);
+                }
+
+                // Skip models with no geometry to prevent zero-sized buffer allocation
+                boolean hasGeometry = false;
+                for (MeshData meshData : modelData.meshes()) {
+                    if (meshData.vertexSize() > 0 && meshData.indexSize() > 0) {
+                        hasGeometry = true;
+                        break;
+                    }
+                }
+
+                if (!hasGeometry) {
+                    continue; // Skip empty models
+                }
+
                 VulkanModel vulkanModel = new VulkanModel(modelData.id());
                 modelsMap.put(vulkanModel.getId(), vulkanModel);
 
@@ -116,6 +135,11 @@ public class ModelsCache {
 
                 // Transform meshes loading their data into GPU buffers
                 for (MeshData meshData : modelData.meshes()) {
+                    // Skip meshes with no geometry to prevent zero-sized buffer allocation
+                    if (meshData.vertexSize() <= 0 || meshData.indexSize() <= 0) {
+                        continue;
+                    }
+
                     TransferBuffer verticesBuffers = createVerticesBuffers(context, meshData, vtxInput);
                     TransferBuffer indicesBuffers = createIndicesBuffers(context, meshData, idxInput);
                     stagingBufferList.add(verticesBuffers.srcBuffer());

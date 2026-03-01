@@ -4,9 +4,14 @@ import java.util.List;
 
 import org.joml.Vector3f;
 
+import com.deepwelldevelopment.spacequest.block.Block;
+import com.deepwelldevelopment.spacequest.block.Blocks;
+import com.deepwelldevelopment.spacequest.block.Block.Side;
 import com.deepwelldevelopment.spacequest.engine.model.ProgrammaticModel.ProgrammaticMesh;
 import com.deepwelldevelopment.spacequest.engine.scene.Entity;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
+import com.deepwelldevelopment.world.World;
+import com.deepwelldevelopment.world.chunk.Chunk;
 
 /**
  * Factory class for creating voxel-based models and entities.
@@ -47,23 +52,26 @@ public class VoxelModelFactory {
     /**
      * Creates a custom voxel structure from a 3D array
      */
-    public static VoxelModelData createFromVoxelData(String id, VoxelType[][][] voxelData,
-            Vector3f position) {
-        if (voxelData == null || voxelData.length == 0) {
-            throw new IllegalArgumentException("Voxel data cannot be null or empty");
-        }
-
+    public static VoxelModelData createFromBlocks(String id, Chunk chunk, Vector3f position) {
         ProgrammaticModel model = new ProgrammaticModel(id);
         int meshIndex = 0;
 
-        for (int y = 0; y < voxelData.length; y++) {
-            for (int z = 0; z < voxelData[y].length; z++) {
-                for (int x = 0; x < voxelData[y][z].length; x++) {
-                    VoxelType voxelType = voxelData[y][z][x];
-                    if (voxelType != null && voxelType != VoxelType.AIR) {
+        for (int y = 0; y < World.CHUNK_SIZE; y++) {
+            for (int z = 0; z < World.CHUNK_SIZE; z++) {
+                for (int x = 0; x < World.CHUNK_SIZE; x++) {
+                    Block block = chunk.getBlock(x, y, z);
+                    if (block != null && block != Blocks.AIR) {
+                        boolean drawTop = block.shouldRenderSide(chunk, x, y, z, Side.TOP);
+                        boolean drawBottom = block.shouldRenderSide(chunk, x, y, z, Side.BOTTOM);
+                        boolean drawFront = block.shouldRenderSide(chunk, x, y, z, Side.FRONT);
+                        boolean drawBack = block.shouldRenderSide(chunk, x, y, z, Side.BACK);
+                        boolean drawLeft = block.shouldRenderSide(chunk, x, y, z, Side.LEFT);
+                        boolean drawRight = block.shouldRenderSide(chunk, x, y, z, Side.RIGHT);
+
                         String meshId = id + "_mesh_" + meshIndex++;
-                        ProgrammaticMesh mesh = model.addMesh(meshId, voxelType.getMaterialId());
-                        createCubeMesh(mesh, x, y, z, 1.0f);
+                        ProgrammaticMesh mesh = model.addMesh(meshId, block.getMaterialName());
+                        createCubeMesh(mesh, x, y, z, 1.0f, drawTop, drawBottom, drawFront, drawBack, drawLeft,
+                                drawRight);
                     }
                 }
             }
@@ -71,60 +79,83 @@ public class VoxelModelFactory {
 
         ModelData modelData = model.toModelData();
         Entity entity = new Entity(id + "_entity", modelData.id(), position);
-
         return new VoxelModelData(model, modelData, entity);
     }
 
     /**
      * Helper method to create a cube mesh at a specific position
      */
-    private static void createCubeMesh(ProgrammaticMesh mesh, float x, float y, float z, float size) {
-        float halfSize = size / 2.0f;
-        int startVertex = mesh.vertices.size() / 3;
+    private static void createCubeMesh(ProgrammaticMesh mesh, float x, float y, float z, float size, boolean drawTop,
+            boolean drawBottom, boolean drawFront, boolean drawBack, boolean drawLeft, boolean drawRight) {
+        Vector3f[] points = new Vector3f[8];
+        points[0] = new Vector3f(x, y, z + size);
+        points[1] = new Vector3f(x + size, y, z + size);
+        points[2] = new Vector3f(x + size, y + size, z + size);
+        points[3] = new Vector3f(x, y + size, z + size);
+        points[4] = new Vector3f(x + size, y, z);
+        points[5] = new Vector3f(x, y, z);
+        points[6] = new Vector3f(x, y + size, z);
+        points[7] = new Vector3f(x + size, y + size, z);
 
         // Front face
-        mesh.addVertex(x - halfSize, y - halfSize, z + halfSize, 0.0f, 1.0f)
-                .addVertex(x + halfSize, y - halfSize, z + halfSize, 1.0f, 1.0f)
-                .addVertex(x + halfSize, y + halfSize, z + halfSize, 1.0f, 0.0f)
-                .addVertex(x - halfSize, y + halfSize, z + halfSize, 0.0f, 0.0f);
+        if (drawFront) {
+            int frontStart = mesh.vertices.size() / 3;
+            mesh.addVertex(points[0], 0.0f, 1.0f)
+                    .addVertex(points[1], 1.0f, 1.0f)
+                    .addVertex(points[2], 1.0f, 0.0f)
+                    .addVertex(points[3], 0.0f, 0.0f);
+            mesh.addQuad(frontStart, frontStart + 1, frontStart + 2, frontStart + 3);
+        }
 
         // Back face
-        mesh.addVertex(x + halfSize, y - halfSize, z - halfSize, 0.0f, 1.0f)
-                .addVertex(x - halfSize, y - halfSize, z - halfSize, 1.0f, 1.0f)
-                .addVertex(x - halfSize, y + halfSize, z - halfSize, 1.0f, 0.0f)
-                .addVertex(x + halfSize, y + halfSize, z - halfSize, 0.0f, 0.0f);
+        if (drawBack) {
+            int backStart = mesh.vertices.size() / 3;
+            mesh.addVertex(points[4], 0.0f, 1.0f)
+                    .addVertex(points[5], 1.0f, 1.0f)
+                    .addVertex(points[6], 1.0f, 0.0f)
+                    .addVertex(points[7], 0.0f, 0.0f);
+            mesh.addQuad(backStart, backStart + 1, backStart + 2, backStart + 3);
+        }
 
         // Top face
-        mesh.addVertex(x - halfSize, y + halfSize, z + halfSize, 0.0f, 0.0f)
-                .addVertex(x + halfSize, y + halfSize, z + halfSize, 1.0f, 0.0f)
-                .addVertex(x + halfSize, y + halfSize, z - halfSize, 1.0f, 1.0f)
-                .addVertex(x - halfSize, y + halfSize, z - halfSize, 0.0f, 1.0f);
+        if (drawTop) {
+            int topStart = mesh.vertices.size() / 3;
+            mesh.addVertex(points[3], 0.0f, 0.0f)
+                    .addVertex(points[2], 1.0f, 0.0f)
+                    .addVertex(points[7], 1.0f, 1.0f)
+                    .addVertex(points[6], 0.0f, 1.0f);
+            mesh.addQuad(topStart, topStart + 1, topStart + 2, topStart + 3);
+        }
 
         // Bottom face
-        mesh.addVertex(x - halfSize, y - halfSize, z - halfSize, 0.0f, 1.0f)
-                .addVertex(x + halfSize, y - halfSize, z - halfSize, 1.0f, 1.0f)
-                .addVertex(x + halfSize, y - halfSize, z + halfSize, 1.0f, 0.0f)
-                .addVertex(x - halfSize, y - halfSize, z + halfSize, 0.0f, 0.0f);
+        if (drawBottom) {
+            int bottomStart = mesh.vertices.size() / 3;
+            mesh.addVertex(points[5], 0.0f, 1.0f)
+                    .addVertex(points[4], 1.0f, 1.0f)
+                    .addVertex(points[1], 1.0f, 0.0f)
+                    .addVertex(points[0], 0.0f, 0.0f);
+            mesh.addQuad(bottomStart, bottomStart + 1, bottomStart + 2, bottomStart + 3);
+        }
 
         // Right face
-        mesh.addVertex(x + halfSize, y - halfSize, z + halfSize, 0.0f, 1.0f)
-                .addVertex(x + halfSize, y - halfSize, z - halfSize, 1.0f, 1.0f)
-                .addVertex(x + halfSize, y + halfSize, z - halfSize, 1.0f, 0.0f)
-                .addVertex(x + halfSize, y + halfSize, z + halfSize, 0.0f, 0.0f);
+        if (drawRight) {
+            int rightStart = mesh.vertices.size() / 3;
+            mesh.addVertex(points[1], 0.0f, 1.0f)
+                    .addVertex(points[4], 1.0f, 1.0f)
+                    .addVertex(points[7], 1.0f, 0.0f)
+                    .addVertex(points[2], 0.0f, 0.0f);
+            mesh.addQuad(rightStart, rightStart + 1, rightStart + 2, rightStart + 3);
+        }
 
         // Left face
-        mesh.addVertex(x - halfSize, y - halfSize, z - halfSize, 0.0f, 1.0f)
-                .addVertex(x - halfSize, y - halfSize, z + halfSize, 1.0f, 1.0f)
-                .addVertex(x - halfSize, y + halfSize, z + halfSize, 1.0f, 0.0f)
-                .addVertex(x - halfSize, y + halfSize, z - halfSize, 0.0f, 0.0f);
-
-        // Add indices for each face
-        mesh.addQuad(startVertex, startVertex + 1, startVertex + 2, startVertex + 3); // Front
-        mesh.addQuad(startVertex + 4, startVertex + 5, startVertex + 6, startVertex + 7); // Back
-        mesh.addQuad(startVertex + 8, startVertex + 9, startVertex + 10, startVertex + 11); // Top
-        mesh.addQuad(startVertex + 12, startVertex + 13, startVertex + 14, startVertex + 15); // Bottom
-        mesh.addQuad(startVertex + 16, startVertex + 17, startVertex + 18, startVertex + 19); // Right
-        mesh.addQuad(startVertex + 20, startVertex + 21, startVertex + 22, startVertex + 23); // Left
+        if (drawLeft) {
+            int leftStart = mesh.vertices.size() / 3;
+            mesh.addVertex(points[5], 0.0f, 1.0f)
+                    .addVertex(points[0], 1.0f, 1.0f)
+                    .addVertex(points[3], 1.0f, 0.0f)
+                    .addVertex(points[6], 0.0f, 0.0f);
+            mesh.addQuad(leftStart, leftStart + 1, leftStart + 2, leftStart + 3);
+        }
 
         mesh.finalizeMesh();
     }
