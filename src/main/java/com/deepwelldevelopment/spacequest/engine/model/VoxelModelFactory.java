@@ -12,6 +12,7 @@ import com.deepwelldevelopment.spacequest.engine.scene.Entity;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.world.World;
 import com.deepwelldevelopment.world.chunk.Chunk;
+import com.deepwelldevelopment.spacequest.engine.model.GreedyMesher.GreedyMeshResult;
 
 /**
  * Factory class for creating voxel-based models and entities.
@@ -50,7 +51,20 @@ public class VoxelModelFactory {
     }
 
     /**
-     * Creates a custom voxel structure from a 3D array
+     * Creates a custom voxel structure from a 3D array using greedy meshing for
+     * optimization
+     */
+    public static VoxelModelData createFromBlocksGreedy(String id, Chunk chunk, Vector3f position) {
+        GreedyMeshResult greedyResult = GreedyMesher.createGreedyMesh(id, chunk);
+        ModelData modelData = greedyResult.model.toModelData();
+        Entity entity = new Entity(id + "_entity", modelData.id(), position);
+
+        return new VoxelModelData(greedyResult.model, modelData, entity);
+    }
+
+    /**
+     * Creates a custom voxel structure from a 3D array (legacy method for
+     * comparison)
      */
     public static VoxelModelData createFromBlocks(String id, Chunk chunk, Vector3f position) {
         ProgrammaticModel model = new ProgrammaticModel(id);

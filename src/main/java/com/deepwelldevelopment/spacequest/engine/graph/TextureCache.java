@@ -41,7 +41,6 @@ public class TextureCache {
     }
 
     public Texture addTexture(VulkanContext vulkanContext, String id, String texturePath, int format) {
-        System.out.println("Adding texture " + texturePath);
         ImageSrc srcImage = null;
         Texture result = null;
         try {
