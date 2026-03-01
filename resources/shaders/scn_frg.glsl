@@ -1,7 +1,7 @@
 #version 450
 
 // Keep in sync manually with Java code
-const int MAX_TEXTURES = 16;
+const int MAX_TEXTURES = 32;
 
 layout(location = 0) in vec2 inTexCoords;
 
@@ -9,6 +9,8 @@ layout(location = 0) out vec4 outFragColor;
 
 struct Material {
     vec4 diffuseColor;
+    vec2 uvScale;
+    vec2 uvOffset;
     uint hasTexture;
     uint textureIndex;
     uint padding[2];
@@ -28,7 +30,8 @@ void main()
 {
     Material material = matUniform.materials[push_constants.materialIndex];
     if (material.hasTexture == 1) {
-        outFragColor = texture(texSampler[material.textureIndex], inTexCoords);
+        vec2 transformedUVs = inTexCoords * material.uvScale + material.uvOffset;
+        outFragColor = texture(texSampler[material.textureIndex], transformedUVs);
     } else {
         outFragColor = material.diffuseColor;
     }

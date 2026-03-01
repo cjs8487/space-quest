@@ -25,7 +25,8 @@ import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
 
 public class MaterialsCache {
 
-    private static final int MATERIAL_SIZE = VulkanUtils.VEC4_SIZE + VulkanUtils.INT_SIZE * 4;
+    private static final int MATERIAL_SIZE = VulkanUtils.VEC4_SIZE + VulkanUtils.VEC2_SIZE * 2
+            + VulkanUtils.INT_SIZE * 4;
     private final IndexedLinkedHashMap<String, VulkanMaterial> materialsMap;
     private VulkanBuffer materialsBuffer;
 
@@ -92,12 +93,18 @@ public class MaterialsCache {
             materialsMap.put(vulkanMaterial.id(), vulkanMaterial);
 
             material.diffuseColor().get(offset, data);
-            data.putInt(offset + VulkanUtils.VEC4_SIZE, hasTexture ? 1 : 0);
-            data.putInt(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.INT_SIZE, textureCache.getPosition(texturePath));
+            data.putFloat(offset + VulkanUtils.VEC4_SIZE, material.uvScale().x);
+            data.putFloat(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.FLOAT_SIZE, material.uvScale().y);
+            data.putFloat(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.VEC2_SIZE, material.uvOffset().x);
+            data.putFloat(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.VEC2_SIZE + VulkanUtils.FLOAT_SIZE,
+                    material.uvOffset().y);
+            data.putInt(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.VEC2_SIZE * 2, hasTexture ? 1 : 0);
+            data.putInt(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.VEC2_SIZE * 2 + VulkanUtils.INT_SIZE,
+                    textureCache.getPosition(texturePath));
 
             // Padding
-            data.putInt(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.INT_SIZE * 2, 0);
-            data.putInt(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.INT_SIZE * 3, 0);
+            data.putInt(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.VEC2_SIZE * 2 + VulkanUtils.INT_SIZE * 2, 0);
+            data.putInt(offset + VulkanUtils.VEC4_SIZE + VulkanUtils.VEC2_SIZE * 2 + VulkanUtils.INT_SIZE * 3, 0);
 
             offset += MATERIAL_SIZE;
         }

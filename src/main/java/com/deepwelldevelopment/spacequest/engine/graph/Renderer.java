@@ -115,13 +115,13 @@ public class Renderer {
 
         modelsCache.loadModels(vulkanContext, models, commandPools[0], graphicsQueue);
 
-        Logger.debug("Transitioning textures");
-        textureCache.transitionTexts(vulkanContext, commandPools[0], graphicsQueue);
-        Logger.debug("Textures transitioned");
-
         List<MaterialData> materials = new ArrayList<>();
         materials.addAll(VoxelMaterialManager.getAllMaterials());
         materialsCache.loadMaterials(vulkanContext, materials, textureCache, commandPools[0], graphicsQueue);
+
+        Logger.debug("Transitioning textures");
+        textureCache.transitionTexts(vulkanContext, commandPools[0], graphicsQueue);
+        Logger.debug("Textures transitioned");
 
         sceneRenderer.loadMaterials(vulkanContext, materialsCache, textureCache);
     }

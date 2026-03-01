@@ -18,7 +18,7 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.Texture;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 
 public class TextureCache {
-    public static final int MAX_TEXTURES = 16;
+    public static final int MAX_TEXTURES = 32;
     private final IndexedLinkedHashMap<String, Texture> textureMap;
 
     public TextureCache() {
@@ -26,18 +26,22 @@ public class TextureCache {
     }
 
     public Texture addTexture(VulkanContext vulkanContext, String id, ImageSrc srcImage, int format) {
+        Texture texture = getTexture(id);
+        if (texture != null) {
+            return texture;
+        }
         if (textureMap.size() > MAX_TEXTURES) {
             throw new IllegalArgumentException("Texture cache is full");
         }
-        Texture texture = textureMap.get(id);
-        if (texture == null) {
-            texture = new Texture(vulkanContext, id, srcImage, format);
-            textureMap.put(id, texture);
-        }
+
+        texture = new Texture(vulkanContext, id, srcImage, format);
+        textureMap.put(id, texture);
+
         return texture;
     }
 
     public Texture addTexture(VulkanContext vulkanContext, String id, String texturePath, int format) {
+        System.out.println("Adding texture " + texturePath);
         ImageSrc srcImage = null;
         Texture result = null;
         try {
