@@ -33,8 +33,6 @@ public class SpaceQuest {
         world = new World();
         world.generate();
 
-        VoxelMaterialManager.initialize();
-
         Camera camera = engineContext.scene().getCamera();
         camera.setPosition(0.0f, 20.0f, 0.0f);
         camera.setRotation((float) Math.toRadians(20.0f), (float) Math.toRadians(90.f));
