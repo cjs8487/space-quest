@@ -1,7 +1,8 @@
 package com.deepwelldevelopment.world;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.deepwelldevelopment.spacequest.block.Block;
 import com.deepwelldevelopment.world.chunk.Chunk;
@@ -10,43 +11,27 @@ public class World {
 
     public static final int CHUNK_SIZE = 16;
 
-    private static final int WORLD_SIZE = 2;
+    private static final int VIEW_DISTANCE = 4;
 
-    Chunk[][] chunks;
+    private Map<Long, Chunk> chunks;
 
     public World() {
-        this.chunks = new Chunk[WORLD_SIZE][WORLD_SIZE];
+        this.chunks = new HashMap<Long, Chunk>();
     }
 
     public Chunk getChunk(int x, int z) {
         int chunkX = x / CHUNK_SIZE;
         int chunkZ = z / CHUNK_SIZE;
 
-        if (chunkX < 0 || chunkX >= WORLD_SIZE || chunkZ < 0 || chunkZ >= WORLD_SIZE) {
-            return null;
-        }
-
-        return chunks[chunkX][chunkZ];
+        return chunks.get((long) chunkX << 32 | chunkZ);
     }
 
     public Block getBlock(int x, int y, int z) {
-        if (x < 0 || x >= WORLD_SIZE * CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE || z < 0
-                || z >= WORLD_SIZE * CHUNK_SIZE) {
-            return null;
-        }
-
-        int chunkX = x / CHUNK_SIZE;
-        int chunkZ = z / CHUNK_SIZE;
-
-        if (chunkX < 0 || chunkX >= WORLD_SIZE || chunkZ < 0 || chunkZ >= WORLD_SIZE) {
-            return null;
-        }
-
         int localX = x % CHUNK_SIZE;
         int localY = y; // Y is already local since we don't stack chunks vertically
         int localZ = z % CHUNK_SIZE;
 
-        Chunk chunk = chunks[chunkX][chunkZ];
+        Chunk chunk = getChunk(x, z);
         if (chunk == null) {
             return null;
         }
@@ -56,24 +41,22 @@ public class World {
     public void generate() {
         // TODO: Implement noise based world generation
 
-        for (int x = 0; x < WORLD_SIZE; x++) {
-            for (int z = 0; z < WORLD_SIZE; z++) {
-                Chunk chunk = new Chunk(x, z);
-                chunk.setWorld(this); // Set world reference for cross-chunk neighbor checking
-                chunk.generate();
-                chunks[x][z] = chunk; // Add chunk to array before mesh creation
-                chunk.createMesh(); // Create mesh after generation
+        for (int xc = -VIEW_DISTANCE; xc <= VIEW_DISTANCE; xc++) {
+            for (int zc = -VIEW_DISTANCE; zc <= VIEW_DISTANCE; zc++) {
+                if (Math.abs(xc) + Math.abs(zc) > VIEW_DISTANCE)
+                    continue;
+                Chunk chunk = getChunk(xc, zc);
+                if (chunk == null) {
+                    chunk = new Chunk(xc, zc);
+                    chunk.generate();
+                    chunk.createMesh();
+                    chunks.put((long) xc << 32 | zc, chunk);
+                }
             }
         }
     }
 
-    public List<Chunk> getChunks() {
-        List<Chunk> chunksList = new ArrayList<>();
-        for (int x = 0; x < WORLD_SIZE; x++) {
-            for (int z = 0; z < WORLD_SIZE; z++) {
-                chunksList.add(chunks[x][z]);
-            }
-        }
-        return chunksList;
+    public Collection<Chunk> getChunks() {
+        return chunks.values();
     }
 }
