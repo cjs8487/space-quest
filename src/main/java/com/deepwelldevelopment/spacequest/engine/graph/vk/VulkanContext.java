@@ -10,6 +10,7 @@ public class VulkanContext {
     private final Instance instance;
     private final PhysicalDevice physicalDevice;
     private final PipelineCache pipelineCache;
+    private final MemAlloc memAlloc;
     private Surface surface;
     private SwapChain swapChain;
 
@@ -22,9 +23,11 @@ public class VulkanContext {
         swapChain = new SwapChain(window, device, surface, engCfg.getRequestedImages(), engCfg.getVSync());
         pipelineCache = new PipelineCache(device);
         descAllocator = new DescAllocator(physicalDevice, device);
+        memAlloc = new MemAlloc(instance, physicalDevice, device);
     }
 
     public void cleanup() {
+        memAlloc.cleanup();
         descAllocator.cleanup(device);
         pipelineCache.cleanup(device);
         swapChain.cleanup(device);
@@ -56,6 +59,10 @@ public class VulkanContext {
 
     public DescAllocator getDescAllocator() {
         return descAllocator;
+    }
+
+    public MemAlloc getMemAlloc() {
+        return memAlloc;
     }
 
     public void resize(Window window) {

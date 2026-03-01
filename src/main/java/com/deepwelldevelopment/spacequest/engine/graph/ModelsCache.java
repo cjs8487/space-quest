@@ -1,11 +1,11 @@
 package com.deepwelldevelopment.spacequest.engine.graph;
 
+import static org.lwjgl.util.vma.Vma.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+import static org.lwjgl.util.vma.Vma.VMA_MEMORY_USAGE_AUTO;
 import static org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 import static org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 import static org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 import static org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
 import java.io.BufferedInputStream;
@@ -41,12 +41,10 @@ public class ModelsCache {
     private static TransferBuffer createIndicesBuffers(VulkanContext context, MeshData meshData,
             DataInputStream idxInput) throws IOException {
         int bufferSize = meshData.indexSize();
-        var srcBuffer = new VulkanBuffer(context, bufferSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        var srcBuffer = new VulkanBuffer(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         var dstBuffer = new VulkanBuffer(context, bufferSize,
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, 0, 0);
 
         long mappedMemory = srcBuffer.map(context);
         IntBuffer data = MemoryUtil.memIntBuffer(mappedMemory, (int) srcBuffer.getRequestedSize());
@@ -65,12 +63,10 @@ public class ModelsCache {
     private static TransferBuffer createVerticesBuffers(VulkanContext context, MeshData meshData,
             DataInputStream vtxInput) throws IOException {
         int bufferSize = meshData.vertexSize();
-        var srcBuffer = new VulkanBuffer(context, bufferSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        var srcBuffer = new VulkanBuffer(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         var dstBuffer = new VulkanBuffer(context, bufferSize,
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, 0, 0);
 
         long mappedMemory = srcBuffer.map(context);
         FloatBuffer data = MemoryUtil.memFloatBuffer(mappedMemory, (int) srcBuffer.getRequestedSize());
@@ -129,8 +125,7 @@ public class ModelsCache {
                 } else {
                     vtxInput = new DataInputStream(
                             new BufferedInputStream(new FileInputStream(modelData.vertexPath())));
-                    idxInput = new DataInputStream(
-                            new BufferedInputStream(new FileInputStream(modelData.indexPath())));
+                    idxInput = new DataInputStream(new BufferedInputStream(new FileInputStream(modelData.indexPath())));
                 }
 
                 // Transform meshes loading their data into GPU buffers

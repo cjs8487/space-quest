@@ -24,6 +24,7 @@ public class EngineConfig {
     private float zFar;
     private String defaultTexturePath;
     private int maxDescs;
+    private boolean isFxaa;
 
     private EngineConfig() {
         var props = new Properties();
@@ -42,6 +43,7 @@ public class EngineConfig {
             zFar = Float.parseFloat(props.getOrDefault("zFar", 100.0f).toString());
             defaultTexturePath = props.getProperty("defaultTexturePath").toString();
             maxDescs = Integer.parseInt(props.getOrDefault("maxDescs", 1000).toString());
+            isFxaa = Boolean.parseBoolean(props.getOrDefault("isFxaa", "false").toString());
         } catch (IOException e) {
             Logger.error("Could not read [{}] properties file", FILENAME, e);
         }
@@ -100,5 +102,9 @@ public class EngineConfig {
 
     public int getMaxDescs() {
         return maxDescs;
+    }
+
+    public boolean isFxaa() {
+        return isFxaa;
     }
 }

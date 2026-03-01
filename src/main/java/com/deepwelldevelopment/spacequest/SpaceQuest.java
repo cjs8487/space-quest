@@ -21,6 +21,11 @@ import com.deepwelldevelopment.spacequest.engine.window.MouseInput;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
 import com.deepwelldevelopment.world.World;
 
+import imgui.ImGui;
+import imgui.ImGuiIO;
+import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiWindowFlags;
+
 public class SpaceQuest {
 
     private static final float MOUSE_SENSITIVITY = 0.1f;
@@ -40,6 +45,10 @@ public class SpaceQuest {
     }
 
     public void input(EngineContext engineContext, long deltaTime) {
+        if (handleGui(engineContext)) {
+            return;
+        }
+
         Scene scene = engineContext.scene();
         Window window = engineContext.window();
 
@@ -80,6 +89,32 @@ public class SpaceQuest {
     }
 
     public void cleanup() {
+    }
+
+    private boolean handleGui(EngineContext engCtx) {
+        ImGuiIO imGuiIO = ImGui.getIO();
+        MouseInput mouseInput = engCtx.window().getMouseInput();
+        Vector2f mousePos = mouseInput.getCurrentPos();
+        imGuiIO.addMousePosEvent(mousePos.x, mousePos.y);
+        imGuiIO.addMouseButtonEvent(0, mouseInput.isLeftButtonPressed());
+        imGuiIO.addMouseButtonEvent(1, mouseInput.isRightButtonPressed());
+
+        ImGui.newFrame();
+        ImGui.setNextWindowPos(0, 0, ImGuiCond.Always);
+        ImGui.setNextWindowSize(200, 200);
+        ImGui.begin("Overlay", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize
+                | ImGuiWindowFlags.NoBackground);
+
+        ImGui.text(String.format("X: %.2f, Y: %.2f, Z: %.2f", engCtx.scene().getCamera().getPosition().x,
+                engCtx.scene().getCamera().getPosition().y, engCtx.scene().getCamera().getPosition().z));
+        ImGui.newLine();
+        ImGui.text("Chunk: " + (int) (engCtx.scene().getCamera().getPosition().x / 16) + ", "
+                + (int) (engCtx.scene().getCamera().getPosition().z / 16));
+        ImGui.end();
+        ImGui.render();
+        ImGui.endFrame();
+
+        return imGuiIO.getWantCaptureKeyboard();
     }
 
     public static void main(String[] args) {

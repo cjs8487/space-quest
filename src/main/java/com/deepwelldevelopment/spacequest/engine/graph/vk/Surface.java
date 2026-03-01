@@ -2,6 +2,7 @@ package com.deepwelldevelopment.spacequest.engine.graph.vk;
 
 import static com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils.vkCheck;
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_SRGB;
+import static org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_UNORM;
 
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
@@ -30,8 +31,7 @@ public class Surface {
 
             surfaceCaps = VkSurfaceCapabilitiesKHR.calloc();
             vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice.getVkPhysicalDevice(),
-                    vkSurface,
-                    surfaceCaps), "Failed to get surface capabilities");
+                    vkSurface, surfaceCaps), "Failed to get surface capabilities");
 
             surfaceFormat = calcSurfaceFormat(physicalDevice, vkSurface);
         }
@@ -42,27 +42,25 @@ public class Surface {
         int colorSpace;
         try (var stack = MemoryStack.stackPush()) {
             IntBuffer ip = stack.mallocInt(1);
-            vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.getVkPhysicalDevice(), vkSurface,
-                    ip, null),
-                    "Failed to get the number of surface formats");
+            vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.getVkPhysicalDevice(), vkSurface, ip,
+                    null), "Failed to get the number of surface formats");
             int numFormats = ip.get(0);
             if (numFormats <= 0) {
                 throw new RuntimeException("No surface formats retrieved");
             }
 
             var surfaceFormats = VkSurfaceFormatKHR.calloc(numFormats, stack);
-            vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.getVkPhysicalDevice(), vkSurface,
-                    ip, surfaceFormats),
-                    "Failed to get surface formats");
+            vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.getVkPhysicalDevice(), vkSurface, ip,
+                    surfaceFormats), "Failed to get surface formats");
 
-            imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
+            imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
             colorSpace = surfaceFormats.get(0).colorSpace();
             for (int i = 0; i < numFormats; i++) {
-                VkSurfaceFormatKHR surfaceFormat = surfaceFormats.get(i);
-                if (surfaceFormat.format() == VK_FORMAT_B8G8R8A8_SRGB
-                        && surfaceFormat.colorSpace() == KHRSurface.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-                    imageFormat = surfaceFormat.format();
-                    colorSpace = surfaceFormat.colorSpace();
+                VkSurfaceFormatKHR surfaceFormatKHR = surfaceFormats.get(i);
+                if (surfaceFormatKHR.format() == VK_FORMAT_B8G8R8A8_UNORM
+                        && surfaceFormatKHR.colorSpace() == KHRSurface.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                    imageFormat = surfaceFormatKHR.format();
+                    colorSpace = surfaceFormatKHR.colorSpace();
                     break;
                 }
             }

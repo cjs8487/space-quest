@@ -1,6 +1,8 @@
 package com.deepwelldevelopment.spacequest.engine.graph.vk;
 
 import static com.deepwelldevelopment.spacequest.MathUtils.log2;
+import static org.lwjgl.util.vma.Vma.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+import static org.lwjgl.util.vma.Vma.VMA_MEMORY_USAGE_AUTO;
 import static org.lwjgl.vulkan.VK10.VK_ACCESS_SHADER_READ_BIT;
 import static org.lwjgl.vulkan.VK10.VK_ACCESS_TRANSFER_READ_BIT;
 import static org.lwjgl.vulkan.VK10.VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -14,7 +16,6 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_UNDEFINED;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_USAGE_SAMPLED_BIT;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -80,8 +81,8 @@ public class Texture {
 
     private void createStgBuffer(VulkanContext vulkanContext, ByteBuffer data) {
         int size = data.remaining();
-        stgBuffer = new VulkanBuffer(vulkanContext, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        stgBuffer = new VulkanBuffer(vulkanContext, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         long mappedMemory = stgBuffer.map(vulkanContext);
         ByteBuffer buffer = MemoryUtil.memByteBuffer(mappedMemory, (int) stgBuffer.getRequestedSize());
         buffer.put(data);
@@ -111,16 +112,11 @@ public class Texture {
     }
 
     private void recordCopyBuffer(MemoryStack stack, CommandBuffer cmd, VulkanBuffer bufferData) {
-        VkBufferImageCopy.Buffer region = VkBufferImageCopy.calloc(1, stack)
-                .bufferOffset(0)
-                .bufferRowLength(0)
+        VkBufferImageCopy.Buffer region = VkBufferImageCopy.calloc(1, stack).bufferOffset(0).bufferRowLength(0)
                 .bufferImageHeight(0)
-                .imageSubresource(it -> it.aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                        .mipLevel(0)
-                        .baseArrayLayer(0)
-                        .layerCount(1))
-                .imageOffset(it -> it.x(0).y(0).z(0))
-                .imageExtent(it -> it.width(width).height(height).depth(1));
+                .imageSubresource(
+                        it -> it.aspectMask(VK_IMAGE_ASPECT_COLOR_BIT).mipLevel(0).baseArrayLayer(0).layerCount(1))
+                .imageOffset(it -> it.x(0).y(0).z(0)).imageExtent(it -> it.width(width).height(height).depth(1));
 
         vkCmdCopyBufferToImage(cmd.getVkCommandBuffer(), bufferData.getBuffer(), image.getVkImage(),
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region);
@@ -142,21 +138,13 @@ public class Texture {
 
     private void recordGenerateMipMaps(MemoryStack stack, CommandBuffer cmd) {
         VkImageSubresourceRange subResourceRange = VkImageSubresourceRange.calloc(stack)
-                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                .baseArrayLayer(0)
-                .levelCount(1)
-                .layerCount(1);
+                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT).baseArrayLayer(0).levelCount(1).layerCount(1);
 
-        VkImageMemoryBarrier2.Buffer barrier = VkImageMemoryBarrier2.calloc(1, stack)
-                .sType$Default()
-                .image(image.getVkImage())
-                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                .subresourceRange(subResourceRange);
+        VkImageMemoryBarrier2.Buffer barrier = VkImageMemoryBarrier2.calloc(1, stack).sType$Default()
+                .image(image.getVkImage()).srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED).subresourceRange(subResourceRange);
 
-        VkDependencyInfo depInfo = VkDependencyInfo.calloc(stack)
-                .sType$Default()
-                .pImageMemoryBarriers(barrier);
+        VkDependencyInfo depInfo = VkDependencyInfo.calloc(stack).sType$Default().pImageMemoryBarriers(barrier);
 
         int mipWidth = width;
         int mipHeight = height;
@@ -164,12 +152,9 @@ public class Texture {
         int mipLevels = image.getMipLevels();
         for (int i = 1; i < mipLevels; i++) {
             subResourceRange.baseMipLevel(i - 1);
-            barrier.subresourceRange(subResourceRange)
-                    .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-                    .newLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-                    .srcStageMask(VK_PIPELINE_STAGE_TRANSFER_BIT)
-                    .dstStageMask(VK_PIPELINE_STAGE_TRANSFER_BIT)
-                    .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+            barrier.subresourceRange(subResourceRange).oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+                    .newLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL).srcStageMask(VK_PIPELINE_STAGE_TRANSFER_BIT)
+                    .dstStageMask(VK_PIPELINE_STAGE_TRANSFER_BIT).srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
                     .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT);
 
             vkCmdPipelineBarrier2(cmd.getVkCommandBuffer(), depInfo);
@@ -178,36 +163,21 @@ public class Texture {
             VkOffset3D srcOffset0 = VkOffset3D.calloc(stack).x(0).y(0).z(0);
             VkOffset3D srcOffset1 = VkOffset3D.calloc(stack).x(mipWidth).y(mipHeight).z(1);
             VkOffset3D dstOffset0 = VkOffset3D.calloc(stack).x(0).y(0).z(0);
-            VkOffset3D dstOffset1 = VkOffset3D.calloc(stack)
-                    .x(mipWidth > 1 ? mipWidth / 2 : 1).y(mipHeight > 1 ? mipHeight / 2 : 1).z(1);
-            VkImageBlit.Buffer blit = VkImageBlit.calloc(1, stack)
-                    .srcOffsets(0, srcOffset0)
-                    .srcOffsets(1, srcOffset1)
-                    .srcSubresource(it -> it
-                            .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                            .mipLevel(auxi - 1)
-                            .baseArrayLayer(0)
+            VkOffset3D dstOffset1 = VkOffset3D.calloc(stack).x(mipWidth > 1 ? mipWidth / 2 : 1)
+                    .y(mipHeight > 1 ? mipHeight / 2 : 1).z(1);
+            VkImageBlit.Buffer blit = VkImageBlit.calloc(1, stack).srcOffsets(0, srcOffset0).srcOffsets(1, srcOffset1)
+                    .srcSubresource(it -> it.aspectMask(VK_IMAGE_ASPECT_COLOR_BIT).mipLevel(auxi - 1).baseArrayLayer(0)
                             .layerCount(1))
-                    .dstOffsets(0, dstOffset0)
-                    .dstOffsets(1, dstOffset1)
-                    .dstSubresource(it -> it
-                            .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                            .mipLevel(auxi)
-                            .baseArrayLayer(0)
-                            .layerCount(1));
+                    .dstOffsets(0, dstOffset0).dstOffsets(1, dstOffset1).dstSubresource(it -> it
+                            .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT).mipLevel(auxi).baseArrayLayer(0).layerCount(1));
 
-            vkCmdBlitImage(cmd.getVkCommandBuffer(),
-                    image.getVkImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    image.getVkImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    blit, VK_FILTER_LINEAR);
+            vkCmdBlitImage(cmd.getVkCommandBuffer(), image.getVkImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    image.getVkImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, blit, VK_FILTER_LINEAR);
 
-            barrier.oldLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-                    .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-                    .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                    .dstAccessMask(VK_ACCESS_SHADER_READ_BIT);
+            barrier.oldLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL).newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+                    .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT).dstAccessMask(VK_ACCESS_SHADER_READ_BIT);
 
-            barrier.srcStageMask(VK_PIPELINE_STAGE_TRANSFER_BIT)
-                    .dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+            barrier.srcStageMask(VK_PIPELINE_STAGE_TRANSFER_BIT).dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 
             vkCmdPipelineBarrier2(cmd.getVkCommandBuffer(), depInfo);
 
@@ -217,13 +187,9 @@ public class Texture {
                 mipHeight /= 2;
         }
 
-        barrier.subresourceRange(it -> it
-                .baseMipLevel(mipLevels - 1))
-                .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-                .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-                .srcStageMask(VK_PIPELINE_STAGE_TRANSFER_BIT)
-                .dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT)
-                .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+        barrier.subresourceRange(it -> it.baseMipLevel(mipLevels - 1)).oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+                .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL).srcStageMask(VK_PIPELINE_STAGE_TRANSFER_BIT)
+                .dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT).srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
                 .dstAccessMask(VK_ACCESS_SHADER_READ_BIT);
 
         vkCmdPipelineBarrier2(cmd.getVkCommandBuffer(), depInfo);
@@ -233,10 +199,9 @@ public class Texture {
         if (stgBuffer != null && !recordedTransition) {
             recordedTransition = true;
             try (var stack = MemoryStack.stackPush()) {
-                VulkanUtils.imageBarrier(stack, cmd.getVkCommandBuffer(), image.getVkImage(),
-                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        VK_ACCESS_2_NONE, VK_ACCESS_TRANSFER_WRITE_BIT,
+                VulkanUtils.imageBarrier(stack, cmd.getVkCommandBuffer(), image.getVkImage(), VK_IMAGE_LAYOUT_UNDEFINED,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_2_NONE, VK_ACCESS_TRANSFER_WRITE_BIT,
                         VK_IMAGE_ASPECT_COLOR_BIT);
                 recordCopyBuffer(stack, cmd, stgBuffer);
                 recordGenerateMipMaps(stack, cmd);

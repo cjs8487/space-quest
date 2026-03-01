@@ -1,5 +1,6 @@
 package com.deepwelldevelopment.spacequest.engine.graph;
 
+import static org.lwjgl.vulkan.VK10.VK_FORMAT_R8G8B8A8_SRGB;
 import static org.lwjgl.vulkan.VK13.VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
 import static org.lwjgl.vulkan.VK13.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
@@ -14,12 +15,11 @@ import org.lwjgl.vulkan.VkSemaphoreSubmitInfo;
 import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
+import com.deepwelldevelopment.spacequest.engine.GuiTexture;
+import com.deepwelldevelopment.spacequest.engine.graph.gui.GuiRenderer;
+import com.deepwelldevelopment.spacequest.engine.graph.post.PostRenderer;
 import com.deepwelldevelopment.spacequest.engine.graph.scene.SceneRenderer;
-import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
-import com.deepwelldevelopment.spacequest.engine.model.ModelData;
-import com.deepwelldevelopment.spacequest.engine.model.VoxelMaterialManager;
-import com.deepwelldevelopment.spacequest.engine.model.VoxelModelFactory;
-import com.deepwelldevelopment.spacequest.engine.scene.Scene;
+import com.deepwelldevelopment.spacequest.engine.graph.swap.SwapChainRenderer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandBuffer;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.CommandPool;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.Fence;
@@ -28,6 +28,11 @@ import com.deepwelldevelopment.spacequest.engine.graph.vk.Semaphore;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.SwapChain;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanContext;
 import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
+import com.deepwelldevelopment.spacequest.engine.model.MaterialData;
+import com.deepwelldevelopment.spacequest.engine.model.ModelData;
+import com.deepwelldevelopment.spacequest.engine.model.VoxelMaterialManager;
+import com.deepwelldevelopment.spacequest.engine.model.VoxelModelFactory;
+import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
 import com.deepwelldevelopment.world.World;
 import com.deepwelldevelopment.world.chunk.Chunk;
@@ -44,6 +49,9 @@ public class Renderer {
     private final Queue.PresentQueue presentQueue;
     private final Semaphore[] renderCompleteSemaphores;
     private final SceneRenderer sceneRenderer;
+    private final PostRenderer postRenderer;
+    private final GuiRenderer guiRenderer;
+    private final SwapChainRenderer swapChainRenderer;
     private final TextureCache textureCache;
     private final VulkanContext vulkanContext;
     private int currentFrame;
@@ -73,6 +81,9 @@ public class Renderer {
         }
         resize = false;
         sceneRenderer = new SceneRenderer(vulkanContext, engineContext);
+        postRenderer = new PostRenderer(vulkanContext, sceneRenderer.getAttColor());
+        guiRenderer = new GuiRenderer(engineContext, vulkanContext, graphicsQueue, postRenderer.getAttachment());
+        swapChainRenderer = new SwapChainRenderer(vulkanContext, postRenderer.getAttachment());
         modelsCache = new ModelsCache();
         textureCache = new TextureCache();
         materialsCache = new MaterialsCache();
@@ -82,6 +93,7 @@ public class Renderer {
         vulkanContext.getDevice().waitIdle();
 
         sceneRenderer.cleanup(vulkanContext);
+        guiRenderer.cleanup(vulkanContext);
 
         modelsCache.cleanup(vulkanContext);
         textureCache.cleanup(vulkanContext);
@@ -119,11 +131,18 @@ public class Renderer {
         materials.addAll(VoxelMaterialManager.getAllMaterials());
         materialsCache.loadMaterials(vulkanContext, materials, textureCache, commandPools[0], graphicsQueue);
 
+        List<GuiTexture> guiTextures = new ArrayList<>(List.of(new GuiTexture("resources/textures/vulkan.png")));
+        if (guiTextures != null) {
+            guiTextures.forEach(e -> textureCache.addTexture(vulkanContext, e.texturePath(), e.texturePath(),
+                    VK_FORMAT_R8G8B8A8_SRGB));
+        }
+
         Logger.debug("Transitioning textures");
         textureCache.transitionTexts(vulkanContext, commandPools[0], graphicsQueue);
         Logger.debug("Textures transitioned");
 
         sceneRenderer.loadMaterials(vulkanContext, materialsCache, textureCache);
+        guiRenderer.loadTextures(vulkanContext, guiTextures, textureCache);
     }
 
     private void recordingStart(CommandPool cmdPool, CommandBuffer cmdBuffer) {
@@ -141,9 +160,13 @@ public class Renderer {
         waitForFence(currentFrame);
 
         var cmdPool = commandPools[currentFrame];
-        var commandBuffer = commandBuffers[currentFrame];
+        var cmdBuffer = commandBuffers[currentFrame];
 
-        recordingStart(cmdPool, commandBuffer);
+        recordingStart(cmdPool, cmdBuffer);
+
+        sceneRenderer.render(engCtx, vulkanContext, cmdBuffer, modelsCache, materialsCache, currentFrame);
+        postRenderer.render(vulkanContext, cmdBuffer, sceneRenderer.getAttColor());
+        guiRenderer.render(vulkanContext, cmdBuffer, currentFrame, postRenderer.getAttachment());
 
         int imageIndex;
         if (resize || (imageIndex = swapChain.acquireNextImage(vulkanContext.getDevice(),
@@ -152,12 +175,11 @@ public class Renderer {
             return;
         }
 
-        sceneRenderer.render(engCtx, vulkanContext, commandBuffer, modelsCache, materialsCache, imageIndex,
-                currentFrame);
+        swapChainRenderer.render(vulkanContext, cmdBuffer, postRenderer.getAttachment(), imageIndex);
 
-        recordingStop(commandBuffer);
+        recordingStop(cmdBuffer);
 
-        submit(commandBuffer, currentFrame, imageIndex);
+        submit(cmdBuffer, currentFrame, imageIndex);
 
         resize = swapChain.presentImage(presentQueue, renderCompleteSemaphores[imageIndex], imageIndex);
 
@@ -186,21 +208,21 @@ public class Renderer {
         VkExtent2D extent = vulkanContext.getSwapChain().getSwapChainExtent();
         engineContext.scene().getProjection().resize(extent.width(), extent.height());
         sceneRenderer.resize(engineContext, vulkanContext);
+        postRenderer.resize(vulkanContext, sceneRenderer.getAttColor());
+        guiRenderer.resize(vulkanContext, postRenderer.getAttachment());
+        swapChainRenderer.resize(vulkanContext, postRenderer.getAttachment());
     }
 
     private void submit(CommandBuffer cmdBuff, int currentFrame, int imageIndex) {
         try (var stack = MemoryStack.stackPush()) {
             var fence = fences[currentFrame];
             fence.reset(vulkanContext);
-            var cmds = VkCommandBufferSubmitInfo.calloc(1, stack)
-                    .sType$Default()
+            var cmds = VkCommandBufferSubmitInfo.calloc(1, stack).sType$Default()
                     .commandBuffer(cmdBuff.getVkCommandBuffer());
-            VkSemaphoreSubmitInfo.Buffer waitSemaphores = VkSemaphoreSubmitInfo.calloc(1, stack)
-                    .sType$Default()
+            VkSemaphoreSubmitInfo.Buffer waitSemaphores = VkSemaphoreSubmitInfo.calloc(1, stack).sType$Default()
                     .stageMask(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT)
                     .semaphore(presentationCompleteSemaphores[currentFrame].getVkSemaphore());
-            VkSemaphoreSubmitInfo.Buffer signalSemaphores = VkSemaphoreSubmitInfo.calloc(1, stack)
-                    .sType$Default()
+            VkSemaphoreSubmitInfo.Buffer signalSemaphores = VkSemaphoreSubmitInfo.calloc(1, stack).sType$Default()
                     .stageMask(VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT)
                     .semaphore(renderCompleteSemaphores[imageIndex].getVkSemaphore());
             graphicsQueue.submit(cmds, waitSemaphores, signalSemaphores, fence);

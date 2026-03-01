@@ -12,18 +12,21 @@ import java.nio.file.Files;
 
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo;
+import org.lwjgl.vulkan.VkSpecializationInfo;
 import org.tinylog.Logger;
 
 public class ShaderModule {
 
     private final long handle;
     private final int shaderStage;
+    private final VkSpecializationInfo specInfo;
 
-    public ShaderModule(VulkanContext context, int shaderStage, String shaderSpvFile) {
+    public ShaderModule(VulkanContext context, int shaderStage, String shaderSpvFile, VkSpecializationInfo specInfo) {
         try {
             byte[] moduleContents = Files.readAllBytes(new File(shaderSpvFile).toPath());
             handle = createShaderModule(context, moduleContents);
             this.shaderStage = shaderStage;
+            this.specInfo = specInfo;
         } catch (IOException excp) {
             Logger.error("Error reading shader file", excp);
             throw new RuntimeException(excp);
@@ -34,9 +37,7 @@ public class ShaderModule {
         try (var stack = MemoryStack.stackPush()) {
             ByteBuffer pCode = stack.malloc(code.length).put(0, code);
 
-            var moduleCreateInfo = VkShaderModuleCreateInfo.calloc(stack)
-                    .sType$Default()
-                    .pCode(pCode);
+            var moduleCreateInfo = VkShaderModuleCreateInfo.calloc(stack).sType$Default().pCode(pCode);
 
             LongBuffer lp = stack.mallocLong(1);
             vkCheck(vkCreateShaderModule(context.getDevice().getVkDevice(), moduleCreateInfo, null, lp),
@@ -56,5 +57,9 @@ public class ShaderModule {
 
     public int getShaderStage() {
         return shaderStage;
+    }
+
+    public VkSpecializationInfo getSpecInfo() {
+        return specInfo;
     }
 }
