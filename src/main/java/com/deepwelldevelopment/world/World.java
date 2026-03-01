@@ -20,16 +20,16 @@ public class World {
     }
 
     public Chunk getChunk(int x, int z) {
-        int chunkX = x / CHUNK_SIZE;
-        int chunkZ = z / CHUNK_SIZE;
+        int chunkX = Math.floorDiv(x, CHUNK_SIZE);
+        int chunkZ = Math.floorDiv(z, CHUNK_SIZE);
 
-        return chunks.get((long) chunkX << 32 | chunkZ);
+        return chunks.get(((long) chunkX << 32) | (chunkZ & 0xffffffffL));
     }
 
     public Block getBlock(int x, int y, int z) {
-        int localX = x % CHUNK_SIZE;
+        int localX = (x & 15);
         int localY = y; // Y is already local since we don't stack chunks vertically
-        int localZ = z % CHUNK_SIZE;
+        int localZ = (z & 15);
 
         Chunk chunk = getChunk(x, z);
         if (chunk == null) {
@@ -45,12 +45,14 @@ public class World {
             for (int zc = -VIEW_DISTANCE; zc <= VIEW_DISTANCE; zc++) {
                 if (Math.abs(xc) + Math.abs(zc) > VIEW_DISTANCE)
                     continue;
-                Chunk chunk = getChunk(xc, zc);
+                long chunkKey = ((long) xc << 32) | (zc & 0xffffffffL);
+                Chunk chunk = chunks.get(chunkKey);
                 if (chunk == null) {
                     chunk = new Chunk(xc, zc);
+                    chunk.setWorld(this);
                     chunk.generate();
                     chunk.createMesh();
-                    chunks.put((long) xc << 32 | zc, chunk);
+                    chunks.put(chunkKey, chunk);
                 }
             }
         }

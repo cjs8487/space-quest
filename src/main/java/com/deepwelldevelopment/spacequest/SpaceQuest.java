@@ -108,8 +108,8 @@ public class SpaceQuest {
         ImGui.text(String.format("X: %.2f, Y: %.2f, Z: %.2f", engCtx.scene().getCamera().getPosition().x,
                 engCtx.scene().getCamera().getPosition().y, engCtx.scene().getCamera().getPosition().z));
         ImGui.newLine();
-        ImGui.text("Chunk: " + (int) (engCtx.scene().getCamera().getPosition().x / 16) + ", "
-                + (int) (engCtx.scene().getCamera().getPosition().z / 16));
+        ImGui.text("Chunk: " + Math.floorDiv((int) engCtx.scene().getCamera().getPosition().x, 16) + ", "
+                + Math.floorDiv((int) engCtx.scene().getCamera().getPosition().z, 16));
         ImGui.end();
         ImGui.render();
         ImGui.endFrame();

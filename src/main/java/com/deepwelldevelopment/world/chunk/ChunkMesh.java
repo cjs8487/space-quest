@@ -17,10 +17,8 @@ public class ChunkMesh {
     public ChunkMesh(Chunk chunk) {
         this.chunk = chunk;
         // Use greedy meshing for better performance
-        voxelModels
-                .add(VoxelModelFactory.createFromBlocksGreedy("chunk_" + chunk.getWorldX() + "_" + chunk.getWorldZ(),
-                        chunk,
-                        new Vector3f(chunk.getWorldX() * World.CHUNK_SIZE, 0, chunk.getWorldZ() * World.CHUNK_SIZE)));
+        voxelModels.add(VoxelModelFactory.createFromBlocksGreedy("chunk_" + chunk.getWorldX() + "_" + chunk.getWorldZ(),
+                chunk, new Vector3f(chunk.getWorldX() * World.CHUNK_SIZE, 0, chunk.getWorldZ() * World.CHUNK_SIZE)));
     }
 
     public List<VoxelModelData> getVoxelModels() {
