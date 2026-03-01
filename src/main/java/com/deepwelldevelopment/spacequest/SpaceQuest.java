@@ -65,7 +65,7 @@ public class SpaceQuest {
             camera.moveDown(move);
         }
 
-        if (ki.keyPressed(GLFW_KEY_ESCAPE)) {
+        if (ki.keySinglePress(GLFW_KEY_ESCAPE)) {
             window.getMouseInput().toggleMouseLock();
         }
 
@@ -75,6 +75,8 @@ public class SpaceQuest {
             camera.addRotation((float) Math.toRadians(deltaPos.y * MOUSE_SENSITIVITY),
                     (float) Math.toRadians(deltaPos.x * MOUSE_SENSITIVITY));
         }
+
+        ki.reset();
     }
 
     public void update(EngineContext engineContext, long deltaTime) {

@@ -30,7 +30,7 @@ public class MouseInput {
         this.currentPos = new Vector2f(-1, -1);
         this.deltaPos = new Vector2f();
         this.previousPos = new Vector2f();
-        this.isInWindow = false;
+        this.isInWindow = true;
         this.leftButtonPressed = false;
         this.rightButtonPressed = false;
         this.mouseLocked = false;
@@ -46,6 +46,8 @@ public class MouseInput {
             leftButtonPressed = button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS;
             rightButtonPressed = button == GLFW_MOUSE_BUTTON_2 && action == GLFW_PRESS;
         });
+
+        this.toggleMouseLock();
     }
 
     public Vector2f getCurrentPos() {
