@@ -119,7 +119,10 @@ public class Renderer {
 
         for (Chunk chunk : world.getChunks()) {
             if (chunk != null) {
-                voxelModels.addAll(chunk.getChunkMesh().getVoxelModels());
+                var chunkMesh = chunk.getChunkMesh();
+                if (chunkMesh != null) {
+                    voxelModels.addAll(chunkMesh.getVoxelModels());
+                }
             }
         }
 

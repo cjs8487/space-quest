@@ -15,8 +15,8 @@ import com.deepwelldevelopment.world.chunk.Chunk;
 import com.deepwelldevelopment.spacequest.engine.model.GreedyMesher.GreedyMeshResult;
 
 /**
- * Factory class for creating voxel-based models and entities.
- * Provides a clean separation between voxel and non-voxel model creation.
+ * Factory class for creating voxel-based models and entities. Provides a clean
+ * separation between voxel and non-voxel model creation.
  */
 public class VoxelModelFactory {
 
@@ -56,6 +56,12 @@ public class VoxelModelFactory {
      */
     public static VoxelModelData createFromBlocksGreedy(String id, Chunk chunk, Vector3f position) {
         GreedyMeshResult greedyResult = GreedyMesher.createGreedyMesh(id, chunk);
+
+        // Check if the model has any meshes (faces) - if not, return null
+        if (greedyResult.faceCount == 0 || greedyResult.vertexCount == 0) {
+            return null;
+        }
+
         ModelData modelData = greedyResult.model.toModelData();
         Entity entity = new Entity(id + "_entity", modelData.id(), position);
 
@@ -114,9 +120,7 @@ public class VoxelModelFactory {
         // Front face
         if (drawFront) {
             int frontStart = mesh.vertices.size() / 3;
-            mesh.addVertex(points[0], 0.0f, 1.0f)
-                    .addVertex(points[1], 1.0f, 1.0f)
-                    .addVertex(points[2], 1.0f, 0.0f)
+            mesh.addVertex(points[0], 0.0f, 1.0f).addVertex(points[1], 1.0f, 1.0f).addVertex(points[2], 1.0f, 0.0f)
                     .addVertex(points[3], 0.0f, 0.0f);
             mesh.addQuad(frontStart, frontStart + 1, frontStart + 2, frontStart + 3);
         }
@@ -124,9 +128,7 @@ public class VoxelModelFactory {
         // Back face
         if (drawBack) {
             int backStart = mesh.vertices.size() / 3;
-            mesh.addVertex(points[4], 0.0f, 1.0f)
-                    .addVertex(points[5], 1.0f, 1.0f)
-                    .addVertex(points[6], 1.0f, 0.0f)
+            mesh.addVertex(points[4], 0.0f, 1.0f).addVertex(points[5], 1.0f, 1.0f).addVertex(points[6], 1.0f, 0.0f)
                     .addVertex(points[7], 0.0f, 0.0f);
             mesh.addQuad(backStart, backStart + 1, backStart + 2, backStart + 3);
         }
@@ -134,9 +136,7 @@ public class VoxelModelFactory {
         // Top face
         if (drawTop) {
             int topStart = mesh.vertices.size() / 3;
-            mesh.addVertex(points[3], 0.0f, 0.0f)
-                    .addVertex(points[2], 1.0f, 0.0f)
-                    .addVertex(points[7], 1.0f, 1.0f)
+            mesh.addVertex(points[3], 0.0f, 0.0f).addVertex(points[2], 1.0f, 0.0f).addVertex(points[7], 1.0f, 1.0f)
                     .addVertex(points[6], 0.0f, 1.0f);
             mesh.addQuad(topStart, topStart + 1, topStart + 2, topStart + 3);
         }
@@ -144,9 +144,7 @@ public class VoxelModelFactory {
         // Bottom face
         if (drawBottom) {
             int bottomStart = mesh.vertices.size() / 3;
-            mesh.addVertex(points[5], 0.0f, 1.0f)
-                    .addVertex(points[4], 1.0f, 1.0f)
-                    .addVertex(points[1], 1.0f, 0.0f)
+            mesh.addVertex(points[5], 0.0f, 1.0f).addVertex(points[4], 1.0f, 1.0f).addVertex(points[1], 1.0f, 0.0f)
                     .addVertex(points[0], 0.0f, 0.0f);
             mesh.addQuad(bottomStart, bottomStart + 1, bottomStart + 2, bottomStart + 3);
         }
@@ -154,9 +152,7 @@ public class VoxelModelFactory {
         // Right face
         if (drawRight) {
             int rightStart = mesh.vertices.size() / 3;
-            mesh.addVertex(points[1], 0.0f, 1.0f)
-                    .addVertex(points[4], 1.0f, 1.0f)
-                    .addVertex(points[7], 1.0f, 0.0f)
+            mesh.addVertex(points[1], 0.0f, 1.0f).addVertex(points[4], 1.0f, 1.0f).addVertex(points[7], 1.0f, 0.0f)
                     .addVertex(points[2], 0.0f, 0.0f);
             mesh.addQuad(rightStart, rightStart + 1, rightStart + 2, rightStart + 3);
         }
@@ -164,9 +160,7 @@ public class VoxelModelFactory {
         // Left face
         if (drawLeft) {
             int leftStart = mesh.vertices.size() / 3;
-            mesh.addVertex(points[5], 0.0f, 1.0f)
-                    .addVertex(points[0], 1.0f, 1.0f)
-                    .addVertex(points[3], 1.0f, 0.0f)
+            mesh.addVertex(points[5], 0.0f, 1.0f).addVertex(points[0], 1.0f, 1.0f).addVertex(points[3], 1.0f, 0.0f)
                     .addVertex(points[6], 0.0f, 0.0f);
             mesh.addQuad(leftStart, leftStart + 1, leftStart + 2, leftStart + 3);
         }
@@ -177,8 +171,7 @@ public class VoxelModelFactory {
     /**
      * Utility method to add multiple voxel models to scene
      */
-    public static void addVoxelModelsToScene(Scene scene, List<ModelData> models,
-            List<VoxelModelData> voxelModels) {
+    public static void addVoxelModelsToScene(Scene scene, List<ModelData> models, List<VoxelModelData> voxelModels) {
         for (VoxelModelData voxelModel : voxelModels) {
             models.add(voxelModel.modelData);
             scene.addEntity(voxelModel.entity);

@@ -41,7 +41,15 @@ public class Chunk {
     }
 
     public void createMesh() {
-        this.chunkMesh = new ChunkMesh(this);
+        try {
+            this.chunkMesh = new ChunkMesh(this);
+        } catch (Exception e) {
+            System.err
+                    .println("Failed to create mesh for chunk at (" + worldX + ", " + worldZ + "): " + e.getMessage());
+            e.printStackTrace();
+            // Set chunkMesh to null to indicate mesh creation failed
+            this.chunkMesh = null;
+        }
     }
 
     public Block getBlock(int x, int y, int z) {

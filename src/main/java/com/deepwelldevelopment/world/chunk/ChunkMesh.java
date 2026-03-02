@@ -16,9 +16,25 @@ public class ChunkMesh {
 
     public ChunkMesh(Chunk chunk) {
         this.chunk = chunk;
-        // Use greedy meshing for better performance
-        voxelModels.add(VoxelModelFactory.createFromBlocksGreedy("chunk_" + chunk.getWorldX() + "_" + chunk.getWorldZ(),
-                chunk, new Vector3f(chunk.getWorldX() * World.CHUNK_SIZE, 0, chunk.getWorldZ() * World.CHUNK_SIZE)));
+        try {
+            // Use greedy meshing for better performance
+            VoxelModelFactory.VoxelModelData voxelModel = VoxelModelFactory.createFromBlocksGreedy(
+                    "chunk_" + chunk.getWorldX() + "_" + chunk.getWorldZ(), chunk,
+                    new Vector3f(chunk.getWorldX() * World.CHUNK_SIZE, 0, chunk.getWorldZ() * World.CHUNK_SIZE));
+
+            // Only add the model if it's not null (chunk has visible faces)
+            if (voxelModel != null) {
+                voxelModels.add(voxelModel);
+            } else {
+                // Debug: Chunk is empty (no visible faces)
+                System.out.println(
+                        "Chunk at (" + chunk.getWorldX() + ", " + chunk.getWorldZ() + ") has no visible faces");
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to create greedy mesh for chunk at (" + chunk.getWorldX() + ", "
+                    + chunk.getWorldZ() + "): " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public List<VoxelModelData> getVoxelModels() {

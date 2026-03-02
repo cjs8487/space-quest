@@ -14,6 +14,7 @@ import com.deepwelldevelopment.spacequest.engine.graph.Renderer;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.world.chunk.Chunk;
+import com.deepwelldevelopment.world.chunk.ChunkMesh;
 
 public class World {
 
@@ -110,14 +111,17 @@ public class World {
 
             // Notify renderer of new chunk models and add entities to scene
             if (renderer != null && scene != null) {
-                List<ModelData> models = new ArrayList<>();
-                // Add model data and entities
-                for (var voxelModel : chunk.getChunkMesh().getVoxelModels()) {
-                    models.add(voxelModel.modelData);
-                    scene.addEntity(voxelModel.entity);
-                }
-                for (ModelData modelData : models) {
-                    renderer.addModel(modelData);
+                ChunkMesh chunkMesh = chunk.getChunkMesh();
+                if (chunkMesh != null) {
+                    List<ModelData> models = new ArrayList<>();
+                    // Add model data and entities
+                    for (var voxelModel : chunkMesh.getVoxelModels()) {
+                        models.add(voxelModel.modelData);
+                        scene.addEntity(voxelModel.entity);
+                    }
+                    for (ModelData modelData : models) {
+                        renderer.addModel(modelData);
+                    }
                 }
             }
         }
@@ -139,9 +143,12 @@ public class World {
 
                 // Remove models from renderer and entities from scene
                 if (renderer != null && scene != null && chunk.getChunkMesh() != null) {
-                    for (var voxelModel : chunk.getChunkMesh().getVoxelModels()) {
-                        renderer.removeModel(voxelModel.modelData.id());
-                        scene.removeEntity(voxelModel.entity.getId());
+                    ChunkMesh chunkMesh = chunk.getChunkMesh();
+                    if (chunkMesh != null) {
+                        for (var voxelModel : chunkMesh.getVoxelModels()) {
+                            renderer.removeModel(voxelModel.modelData.id());
+                            scene.removeEntity(voxelModel.entity.getId());
+                        }
                     }
                 }
             }
