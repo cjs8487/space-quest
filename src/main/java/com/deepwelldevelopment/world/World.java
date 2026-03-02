@@ -10,7 +10,7 @@ import java.util.Random;
 import org.joml.Vector3f;
 
 import com.deepwelldevelopment.spacequest.block.Block;
-import com.deepwelldevelopment.spacequest.engine.graph.Renderer;
+import com.deepwelldevelopment.spacequest.engine.graphics.Renderer;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.world.chunk.Chunk;

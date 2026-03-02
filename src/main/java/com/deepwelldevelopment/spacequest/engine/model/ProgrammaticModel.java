@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.joml.Vector3f;
 
-import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
+import com.deepwelldevelopment.spacequest.engine.graphics.vk.VulkanUtils;
 
 public class ProgrammaticModel {
     private final String id;
@@ -44,8 +44,7 @@ public class ProgrammaticModel {
         String indexPath = "memory://" + id + ".idx";
 
         // Store the data in a static registry for ModelsCache to access
-        ModelDataRegistry.registerModel(id, vertexData.toByteArray(),
-                indexData.toByteArray());
+        ModelDataRegistry.registerModel(id, vertexData.toByteArray(), indexData.toByteArray());
 
         return new ModelData(id, meshDataList, vertexPath, indexPath);
     }
@@ -126,8 +125,7 @@ public class ProgrammaticModel {
                 // Write vertex data
                 for (int i = 0; i < vertices.size(); i += 3) {
                     int texIndex = (i / 3) * 2;
-                    model.writeVertexData(
-                            vertices.get(i), vertices.get(i + 1), vertices.get(i + 2),
+                    model.writeVertexData(vertices.get(i), vertices.get(i + 1), vertices.get(i + 2),
                             texCoords.get(texIndex), texCoords.get(texIndex + 1));
                 }
 

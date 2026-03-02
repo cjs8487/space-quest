@@ -46,16 +46,16 @@ import org.tinylog.Logger;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-import com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils;
+import com.deepwelldevelopment.spacequest.engine.graphics.vk.VulkanUtils;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.GsonBuilder;
 
 public class ModelGenerator {
 
     private static final Pattern EMBED_TEXT_ID = Pattern.compile("\\*([0-9]+)");
-    private static final int FLAGS = aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices |
-            aiProcess_Triangulate | aiProcess_FixInfacingNormals | aiProcess_CalcTangentSpace |
-            aiProcess_PreTransformVertices;
+    private static final int FLAGS = aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices
+            | aiProcess_Triangulate | aiProcess_FixInfacingNormals | aiProcess_CalcTangentSpace
+            | aiProcess_PreTransformVertices;
 
     @Parameter(names = "-m", description = "Model path", required = true)
     private String modelPath;
@@ -162,13 +162,11 @@ public class ModelGenerator {
     }
 
     private MaterialData processMaterial(AIScene aiScene, AIMaterial aiMaterial, String modelName, String baseDir,
-            int pos)
-            throws IOException {
+            int pos) throws IOException {
         Vector4f diffuse = new Vector4f();
         AIColor4D color = AIColor4D.create();
 
-        int result = aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0,
-                color);
+        int result = aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0, color);
         if (result == aiReturn_SUCCESS) {
             diffuse.set(color.r(), color.g(), color.b(), color.a());
         }
@@ -217,8 +215,7 @@ public class ModelGenerator {
         }
 
         var meshData = new MeshData(id, materialId, modelBinData.getVertexOffset(), vtxInc,
-                modelBinData.getIndexOffset(),
-                idxInc);
+                modelBinData.getIndexOffset(), idxInc);
 
         modelBinData.incVertexOffset(vtxInc);
         modelBinData.incIndexOffset(idxInc);
@@ -231,8 +228,8 @@ public class ModelGenerator {
         try (var stack = MemoryStack.stackPush()) {
             int numEmbeddedTextures = aiScene.mNumTextures();
             AIString aiTexturePath = AIString.calloc(stack);
-            aiGetMaterialTexture(aiMaterial, textureType, 0, aiTexturePath, (IntBuffer) null,
-                    null, null, null, null, null);
+            aiGetMaterialTexture(aiMaterial, textureType, 0, aiTexturePath, (IntBuffer) null, null, null, null, null,
+                    null);
             texturePath = aiTexturePath.dataString();
             if (texturePath != null && !texturePath.isEmpty()) {
                 Matcher matcher = EMBED_TEXT_ID.matcher(texturePath);

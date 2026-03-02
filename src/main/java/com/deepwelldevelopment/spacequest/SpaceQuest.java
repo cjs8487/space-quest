@@ -13,7 +13,7 @@ import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.engine.Engine;
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
-import com.deepwelldevelopment.spacequest.engine.graph.Renderer;
+import com.deepwelldevelopment.spacequest.engine.graphics.Renderer;
 import com.deepwelldevelopment.spacequest.engine.scene.Camera;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.KeyboardInput;

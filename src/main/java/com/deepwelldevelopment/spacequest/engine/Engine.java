@@ -1,7 +1,7 @@
 package com.deepwelldevelopment.spacequest.engine;
 
 import com.deepwelldevelopment.spacequest.SpaceQuest;
-import com.deepwelldevelopment.spacequest.engine.graph.Renderer;
+import com.deepwelldevelopment.spacequest.engine.graphics.Renderer;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
 
