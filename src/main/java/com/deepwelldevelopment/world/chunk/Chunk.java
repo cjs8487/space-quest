@@ -36,7 +36,7 @@ public class Chunk {
         this.perlin.setPersistence(0.5);
         this.generationHeightmap = new int[World.CHUNK_SIZE][World.CHUNK_SIZE];
         for (int[] arr : generationHeightmap) {
-            Arrays.fill(arr, 8);
+            Arrays.fill(arr, 4);
         }
     }
 
@@ -69,7 +69,8 @@ public class Chunk {
         double startZ = zOff;
         for (int x = 0; x < World.CHUNK_SIZE; x++) {
             for (int z = World.CHUNK_SIZE - 1; z >= 0; z--) {
-                generationHeightmap[x][z] += (4 * perlin.get(xOff + x * 0.005, zOff + z * 0.005, 0));
+                generationHeightmap[x][z] += (4 * perlin.get(xOff, zOff, 0));
+                zOff -= 0.005;
             }
             xOff += 0.005;
             zOff = startZ;
