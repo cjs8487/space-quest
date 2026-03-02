@@ -1,7 +1,6 @@
 package com.deepwelldevelopment.spacequest.engine.graph.vk;
 
 import static com.deepwelldevelopment.spacequest.engine.graph.vk.VulkanUtils.vkCheck;
-import static org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_SRGB;
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_UNORM;
 
 import java.nio.IntBuffer;
