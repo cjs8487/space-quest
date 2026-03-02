@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.joml.Vector3f;
 
@@ -23,9 +24,11 @@ public class World {
     private Map<Long, Chunk> chunks;
     private Renderer renderer;
     private Scene scene;
+    private int worldSeed;
 
     public World() {
         this.chunks = new HashMap<Long, Chunk>();
+        this.worldSeed = new Random().nextInt();
     }
 
     public void setRenderer(Renderer renderer) {
@@ -99,7 +102,7 @@ public class World {
         Chunk chunk = getChunk(worldX * CHUNK_SIZE, worldZ * CHUNK_SIZE);
         if (chunk == null) {
             long chunkKey = ((long) worldX << 32) | (worldZ & 0xffffffffL);
-            chunk = new Chunk(worldX, worldZ);
+            chunk = new Chunk(worldX, worldZ, worldSeed);
             chunk.setWorld(this);
             chunk.generate();
             chunk.createMesh();
@@ -127,8 +130,7 @@ public class World {
 
         for (Map.Entry<Long, Chunk> entry : chunks.entrySet()) {
             Chunk chunk = entry.getValue();
-            float distance = Math.max(
-                    Math.abs(chunk.getWorldX() * CHUNK_SIZE - cameraPosition.x),
+            float distance = Math.max(Math.abs(chunk.getWorldX() * CHUNK_SIZE - cameraPosition.x),
                     Math.abs(chunk.getWorldZ() * CHUNK_SIZE - cameraPosition.z));
 
             if (distance > maxDistance) {
