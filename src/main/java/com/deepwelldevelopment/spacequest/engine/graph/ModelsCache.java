@@ -183,4 +183,31 @@ public class ModelsCache {
     public Map<String, VulkanModel> getModelsMap() {
         return modelsMap;
     }
+
+    public void addModel(VulkanContext context, ModelData modelData, CommandPool commandPool, Queue queue) {
+        loadModels(context, List.of(modelData), commandPool, queue);
+    }
+
+    public void updateModel(VulkanContext context, ModelData modelData, CommandPool commandPool, Queue queue) {
+        // Remove existing model if it exists
+        VulkanModel existingModel = modelsMap.get(modelData.id());
+        if (existingModel != null) {
+            existingModel.cleanup(context);
+            modelsMap.remove(modelData.id());
+        }
+        // Add the updated model
+        addModel(context, modelData, commandPool, queue);
+    }
+
+    public void removeModel(VulkanContext context, String modelId) {
+        VulkanModel model = modelsMap.get(modelId);
+        if (model != null) {
+            model.cleanup(context);
+            modelsMap.remove(modelId);
+        }
+    }
+
+    public boolean hasModel(String modelId) {
+        return modelsMap.containsKey(modelId);
+    }
 }

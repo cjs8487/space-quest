@@ -35,6 +35,8 @@ public class SpaceQuest {
 
     public World init(EngineContext engineContext, Renderer renderer) {
         world = new World();
+        world.setRenderer(renderer);
+        world.setScene(engineContext.scene());
         world.generate();
 
         Camera camera = engineContext.scene().getCamera();
@@ -86,6 +88,7 @@ public class SpaceQuest {
     }
 
     public void update(EngineContext engineContext, long deltaTime) {
+        this.world.tick(engineContext.scene().getCamera().getPosition());
     }
 
     public void cleanup() {
@@ -103,7 +106,7 @@ public class SpaceQuest {
         ImGui.setNextWindowPos(0, 0, ImGuiCond.Always);
         ImGui.setNextWindowSize(200, 200);
         ImGui.begin("Overlay", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize
-                | ImGuiWindowFlags.NoBackground);
+                | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoInputs);
 
         ImGui.text(String.format("X: %.2f, Y: %.2f, Z: %.2f", engCtx.scene().getCamera().getPosition().x,
                 engCtx.scene().getCamera().getPosition().y, engCtx.scene().getCamera().getPosition().z));
@@ -114,7 +117,7 @@ public class SpaceQuest {
         ImGui.render();
         ImGui.endFrame();
 
-        return imGuiIO.getWantCaptureKeyboard();
+        return false; // Never block input
     }
 
     public static void main(String[] args) {

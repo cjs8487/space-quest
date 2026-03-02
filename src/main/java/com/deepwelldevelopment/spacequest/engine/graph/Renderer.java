@@ -54,6 +54,7 @@ public class Renderer {
     private final SwapChainRenderer swapChainRenderer;
     private final TextureCache textureCache;
     private final VulkanContext vulkanContext;
+    private final List<String> modelsToRemove = new ArrayList<>();
     private int currentFrame;
     private boolean resize;
 
@@ -183,7 +184,42 @@ public class Renderer {
 
         resize = swapChain.presentImage(presentQueue, renderCompleteSemaphores[imageIndex], imageIndex);
 
+        // Clean up models if we have accumulated too many
+        cleanupDeferredModels();
+
         currentFrame = (currentFrame + 1) % VulkanUtils.MAX_IN_FLIGHT;
+    }
+
+    public void addModel(ModelData modelData) {
+        modelsCache.addModel(vulkanContext, modelData, commandPools[0], graphicsQueue);
+    }
+
+    public void updateModel(ModelData modelData) {
+        modelsCache.updateModel(vulkanContext, modelData, commandPools[0], graphicsQueue);
+    }
+
+    public void removeModel(String modelId) {
+        // Defer removal until it's safe to destroy resources
+        modelsToRemove.add(modelId);
+    }
+
+    public boolean hasModel(String modelId) {
+        return modelsCache.hasModel(modelId);
+    }
+
+    public void triggerCleanup() {
+        // Don't cleanup immediately - defer to prevent flickering
+        // Models will be cleaned up less frequently to avoid blocking
+    }
+
+    private void cleanupDeferredModels() {
+        if (modelsToRemove.size() > 50) { // Only cleanup when we have many models to remove
+            vulkanContext.getDevice().waitIdle();
+            for (String modelId : modelsToRemove) {
+                modelsCache.removeModel(vulkanContext, modelId);
+            }
+            modelsToRemove.clear();
+        }
     }
 
     private void resize(EngineContext engineContext) {

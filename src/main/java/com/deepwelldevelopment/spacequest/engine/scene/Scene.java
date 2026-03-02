@@ -43,4 +43,8 @@ public class Scene {
     public void removeEntity(Entity entity) {
         entities.removeIf(e -> e.getId().equals(entity.getId()));
     }
+
+    public void removeEntity(String entityId) {
+        entities.removeIf(e -> e.getId().equals(entityId));
+    }
 }
