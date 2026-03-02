@@ -11,8 +11,8 @@ import com.deepwelldevelopment.spacequest.block.Block;
 import com.deepwelldevelopment.spacequest.block.Blocks;
 import com.deepwelldevelopment.spacequest.block.Block.Side;
 import com.deepwelldevelopment.spacequest.engine.model.ProgrammaticModel.ProgrammaticMesh;
-import com.deepwelldevelopment.world.World;
-import com.deepwelldevelopment.world.chunk.Chunk;
+import com.deepwelldevelopment.spacequest.world.World;
+import com.deepwelldevelopment.spacequest.world.chunk.Chunk;
 
 /**
  * Greedy meshing implementation for optimizing chunk rendering. Combines

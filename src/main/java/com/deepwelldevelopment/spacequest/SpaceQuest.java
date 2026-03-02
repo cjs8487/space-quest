@@ -19,7 +19,7 @@ import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.KeyboardInput;
 import com.deepwelldevelopment.spacequest.engine.window.MouseInput;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
-import com.deepwelldevelopment.world.World;
+import com.deepwelldevelopment.spacequest.world.World;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;

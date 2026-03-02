@@ -34,8 +34,8 @@ import com.deepwelldevelopment.spacequest.engine.model.VoxelMaterialManager;
 import com.deepwelldevelopment.spacequest.engine.model.VoxelModelFactory;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
-import com.deepwelldevelopment.world.World;
-import com.deepwelldevelopment.world.chunk.Chunk;
+import com.deepwelldevelopment.spacequest.world.World;
+import com.deepwelldevelopment.spacequest.world.chunk.Chunk;
 
 public class Renderer {
 

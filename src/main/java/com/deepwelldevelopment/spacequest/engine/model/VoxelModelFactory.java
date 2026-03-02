@@ -10,8 +10,8 @@ import com.deepwelldevelopment.spacequest.block.Block.Side;
 import com.deepwelldevelopment.spacequest.engine.model.ProgrammaticModel.ProgrammaticMesh;
 import com.deepwelldevelopment.spacequest.engine.scene.Entity;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
-import com.deepwelldevelopment.world.World;
-import com.deepwelldevelopment.world.chunk.Chunk;
+import com.deepwelldevelopment.spacequest.world.World;
+import com.deepwelldevelopment.spacequest.world.chunk.Chunk;
 import com.deepwelldevelopment.spacequest.engine.model.GreedyMesher.GreedyMeshResult;
 
 /**

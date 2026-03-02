@@ -2,8 +2,8 @@ package com.deepwelldevelopment.spacequest.block;
 
 import org.joml.Vector3f;
 
-import com.deepwelldevelopment.world.World;
-import com.deepwelldevelopment.world.chunk.Chunk;
+import com.deepwelldevelopment.spacequest.world.World;
+import com.deepwelldevelopment.spacequest.world.chunk.Chunk;
 
 public class Block {
 
@@ -29,12 +29,8 @@ public class Block {
     }
 
     public enum Side {
-        FRONT(new Vector3f(0, 0, 1)),
-        BACK(new Vector3f(0, 0, -1)),
-        RIGHT(new Vector3f(1, 0, 0)),
-        LEFT(new Vector3f(-1, 0, 0)),
-        TOP(new Vector3f(0, 1, 0)),
-        BOTTOM(new Vector3f(0, -1, 0));
+        FRONT(new Vector3f(0, 0, 1)), BACK(new Vector3f(0, 0, -1)), RIGHT(new Vector3f(1, 0, 0)),
+        LEFT(new Vector3f(-1, 0, 0)), TOP(new Vector3f(0, 1, 0)), BOTTOM(new Vector3f(0, -1, 0));
 
         private Vector3f sideDirection;
 
@@ -47,9 +43,8 @@ public class Block {
             int neighborY = y + (int) sideDirection.y;
             int neighborZ = z + (int) sideDirection.z;
 
-            if (neighborX >= 0 && neighborX < World.CHUNK_SIZE &&
-                    neighborY >= 0 && neighborY < World.CHUNK_SIZE &&
-                    neighborZ >= 0 && neighborZ < World.CHUNK_SIZE) {
+            if (neighborX >= 0 && neighborX < World.CHUNK_SIZE && neighborY >= 0 && neighborY < World.CHUNK_SIZE
+                    && neighborZ >= 0 && neighborZ < World.CHUNK_SIZE) {
                 return chunk.getBlock(neighborX, neighborY, neighborZ);
             }
 
