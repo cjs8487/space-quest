@@ -43,8 +43,8 @@ public class Window {
             throw new RuntimeException("Failed to get video mode");
         }
 
-        width = vidMode.width();
-        height = vidMode.height();
+        width = 800;
+        height = 600;
 
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
