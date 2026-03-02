@@ -72,7 +72,7 @@ public class Chunk {
                 for (int z = 0; z < World.CHUNK_SIZE; z++) {
                     int height = generationHeightmap[x][z];
                     if (y == height) {
-                        blocks[x][y][z] = Blocks.DIRT;
+                        blocks[x][y][z] = Blocks.GRASS;
                     } else if (y < height) {
                         blocks[x][y][z] = Blocks.STONE;
                     } else {

@@ -8,9 +8,11 @@ import java.util.Map;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 
+import com.deepwelldevelopment.spacequest.block.Block.Side;
+
 /**
- * Manages materials for voxel-based models.
- * Provides default materials and allows for custom material registration.
+ * Manages materials for voxel-based models. Provides default materials and
+ * allows for custom material registration.
  */
 public class VoxelMaterialManager {
 
@@ -35,9 +37,12 @@ public class VoxelMaterialManager {
         registerMaterial("planks_material", "resources/textures/wood.png", new Vector4f(0.7f, 0.5f, 0.3f, 1.0f));
 
         // Ground materials
-        registerMaterial("grass_material", "resources/textures/grass.png", new Vector4f(0.2f, 0.6f, 0.2f, 1.0f));
         registerMaterial("dirt_material", "resources/textures/dirt.png", new Vector4f(0.4f, 0.3f, 0.2f, 1.0f));
         registerMaterial("sand_material", "resources/textures/sand.png", new Vector4f(0.8f, 0.7f, 0.5f, 1.0f));
+
+        // Sided texture materials
+        SidedTextureHelper.registerGrassMaterial("grass_material", "resources/textures/grass_top.png",
+                "resources/textures/dirt.png", "resources/textures/grass_side.png");
 
         // Building materials
         registerMaterial("brick_material", "resources/textures/brick.png", new Vector4f(0.7f, 0.2f, 0.2f, 1.0f));
@@ -79,6 +84,37 @@ public class VoxelMaterialManager {
     public static void registerMaterial(String materialId, String texturePath, Vector4f diffuseColor, Vector2f uvScale,
             Vector2f uvOffset) {
         materials.put(materialId, new MaterialData(materialId, texturePath, diffuseColor, uvScale, uvOffset));
+    }
+
+    /**
+     * Registers a material with sided textures
+     */
+    public static void registerSidedMaterial(String materialId, String defaultTexturePath, Vector4f diffuseColor,
+            Map<Side, String> sideTextures) {
+        materials.put(materialId, new MaterialData(materialId, defaultTexturePath, diffuseColor,
+                new Vector2f(1.0f, 1.0f), new Vector2f(0.0f, 0.0f), sideTextures));
+    }
+
+    /**
+     * Registers a material with sided textures and UV properties
+     */
+    public static void registerSidedMaterial(String materialId, String defaultTexturePath, Vector4f diffuseColor,
+            Vector2f uvScale, Vector2f uvOffset, Map<Side, String> sideTextures) {
+        materials.put(materialId,
+                new MaterialData(materialId, defaultTexturePath, diffuseColor, uvScale, uvOffset, sideTextures));
+
+        // Pre-register all side-specific materials
+        MaterialData baseMaterial = materials.get(materialId);
+        if (baseMaterial != null && baseMaterial.hasSidedTextures()) {
+            for (Side side : Side.values()) {
+                String sideMaterialName = materialId + "_" + side.name().toLowerCase();
+                if (!materials.containsKey(sideMaterialName)) {
+                    String sideTexturePath = baseMaterial.getTexturePath(side);
+                    materials.put(sideMaterialName,
+                            new MaterialData(sideMaterialName, sideTexturePath, diffuseColor, uvScale, uvOffset));
+                }
+            }
+        }
     }
 
     /**

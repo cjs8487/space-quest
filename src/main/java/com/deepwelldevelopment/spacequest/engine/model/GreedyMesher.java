@@ -15,8 +15,8 @@ import com.deepwelldevelopment.world.World;
 import com.deepwelldevelopment.world.chunk.Chunk;
 
 /**
- * Greedy meshing implementation for optimizing chunk rendering.
- * Combines adjacent faces of the same block type into larger quads.
+ * Greedy meshing implementation for optimizing chunk rendering. Combines
+ * adjacent faces of the same block type into larger quads.
  */
 public class GreedyMesher {
 
@@ -57,7 +57,10 @@ public class GreedyMesher {
                 FaceMeshResult result = entry.getValue();
 
                 if (result.faceCount > 0) {
-                    ProgrammaticMesh mesh = model.addMesh(id + "_" + materialName + "_" + side.name(), materialName);
+                    // Use side-specific material name if the material has sided textures
+                    String meshMaterialName = getMaterialNameForSide(materialName, side);
+                    ProgrammaticMesh mesh = model.addMesh(id + "_" + materialName + "_" + side.name(),
+                            meshMaterialName);
                     mesh.vertices.addAll(result.vertices);
                     mesh.texCoords.addAll(result.texCoords);
                     mesh.indices.addAll(result.indices);
@@ -71,29 +74,51 @@ public class GreedyMesher {
         return new GreedyMeshResult(model, totalFaces, totalVertices);
     }
 
+    /**
+     * Gets the appropriate material name for a specific side, handling sided
+     * textures
+     */
+    private static String getMaterialNameForSide(String baseMaterialName, Side side) {
+        MaterialData material = VoxelMaterialManager.getMaterial(baseMaterialName);
+        if (material != null && material.hasSidedTextures()) {
+            // Create side-specific material name
+            String sideMaterialName = baseMaterialName + "_" + side.name().toLowerCase();
+
+            // Register the side-specific material if it doesn't exist
+            if (!VoxelMaterialManager.hasMaterial(sideMaterialName)) {
+                String sideTexturePath = material.getTexturePath(side);
+                VoxelMaterialManager.registerMaterial(sideMaterialName, sideTexturePath, material.diffuseColor(),
+                        material.uvScale(), material.uvOffset());
+            }
+
+            return sideMaterialName;
+        }
+        return baseMaterialName;
+    }
+
     private static Map<String, FaceMeshResult> meshFaceByMaterial(Chunk chunk, Side side) {
         Map<String, FaceMeshResult> materialResults = new HashMap<>();
 
         // Process each 2D slice based on face direction
         switch (side) {
-            case TOP:
-                processTopFaces(chunk, materialResults);
-                break;
-            case BOTTOM:
-                processBottomFaces(chunk, materialResults);
-                break;
-            case FRONT:
-                processFrontFaces(chunk, materialResults);
-                break;
-            case BACK:
-                processBackFaces(chunk, materialResults);
-                break;
-            case LEFT:
-                processLeftFaces(chunk, materialResults);
-                break;
-            case RIGHT:
-                processRightFaces(chunk, materialResults);
-                break;
+        case TOP:
+            processTopFaces(chunk, materialResults);
+            break;
+        case BOTTOM:
+            processBottomFaces(chunk, materialResults);
+            break;
+        case FRONT:
+            processFrontFaces(chunk, materialResults);
+            break;
+        case BACK:
+            processBackFaces(chunk, materialResults);
+            break;
+        case LEFT:
+            processLeftFaces(chunk, materialResults);
+            break;
+        case RIGHT:
+            processRightFaces(chunk, materialResults);
+            break;
         }
 
         return materialResults;
@@ -109,8 +134,7 @@ public class GreedyMesher {
                         continue;
 
                     Block block = chunk.getBlock(x, y, z);
-                    if (block == null || block == Blocks.AIR ||
-                            !block.shouldRenderSide(chunk, x, y, z, Side.TOP)) {
+                    if (block == null || block == Blocks.AIR || !block.shouldRenderSide(chunk, x, y, z, Side.TOP)) {
                         processed[x][y][z] = true;
                         continue;
                     }
@@ -124,6 +148,18 @@ public class GreedyMesher {
                     int height = rect[1];
                     int endX = rect[2];
                     int endZ = rect[3];
+
+                    // Validate that the entire rectangle should render this side
+                    // Use lenient validation - only check if the original block should render
+                    if (!block.shouldRenderSide(chunk, x, y, z, Side.TOP)) {
+                        // Mark as processed to skip individual processing
+                        for (int px = x; px <= endX && px < World.CHUNK_SIZE; px++) {
+                            for (int pz = z; pz <= endZ && pz < World.CHUNK_SIZE; pz++) {
+                                processed[px][y][pz] = true;
+                            }
+                        }
+                        continue;
+                    }
 
                     // Mark processed area for this specific Y level only
                     for (int px = x; px <= endX && px < World.CHUNK_SIZE; px++) {
@@ -153,8 +189,7 @@ public class GreedyMesher {
                         continue;
 
                     Block block = chunk.getBlock(x, y, z);
-                    if (block == null || block == Blocks.AIR ||
-                            !block.shouldRenderSide(chunk, x, y, z, Side.BOTTOM)) {
+                    if (block == null || block == Blocks.AIR || !block.shouldRenderSide(chunk, x, y, z, Side.BOTTOM)) {
                         processed[x][y][z] = true;
                         continue;
                     }
@@ -168,6 +203,18 @@ public class GreedyMesher {
                     int height = rect[1];
                     int endX = rect[2];
                     int endZ = rect[3];
+
+                    // Validate that the entire rectangle should render this side
+                    // Use lenient validation - only check if the original block should render
+                    if (!block.shouldRenderSide(chunk, x, y, z, Side.BOTTOM)) {
+                        // Mark as processed to skip individual processing
+                        for (int px = x; px <= endX && px < World.CHUNK_SIZE; px++) {
+                            for (int pz = z; pz <= endZ && pz < World.CHUNK_SIZE; pz++) {
+                                processed[px][y][pz] = true;
+                            }
+                        }
+                        continue;
+                    }
 
                     // Mark processed area for this specific Y level only
                     for (int px = x; px <= endX && px < World.CHUNK_SIZE; px++) {
@@ -197,8 +244,7 @@ public class GreedyMesher {
                         continue;
 
                     Block block = chunk.getBlock(x, y, z);
-                    if (block == null || block == Blocks.AIR ||
-                            !block.shouldRenderSide(chunk, x, y, z, Side.FRONT)) {
+                    if (block == null || block == Blocks.AIR || !block.shouldRenderSide(chunk, x, y, z, Side.FRONT)) {
                         processed[x][y][z] = true;
                         continue;
                     }
@@ -212,6 +258,18 @@ public class GreedyMesher {
                     int height = rect[1];
                     int endX = rect[2];
                     int endY = rect[3];
+
+                    // Validate that the entire rectangle should render this side
+                    // Use lenient validation - only check if the original block should render
+                    if (!block.shouldRenderSide(chunk, x, y, z, Side.FRONT)) {
+                        // Mark as processed to skip individual processing
+                        for (int px = x; px <= endX && px < World.CHUNK_SIZE; px++) {
+                            for (int py = y; py <= endY && py < World.CHUNK_SIZE; py++) {
+                                processed[px][py][z] = true;
+                            }
+                        }
+                        continue;
+                    }
 
                     // Mark processed area for this specific Z level only
                     for (int px = x; px <= endX && px < World.CHUNK_SIZE; px++) {
@@ -241,8 +299,7 @@ public class GreedyMesher {
                         continue;
 
                     Block block = chunk.getBlock(x, y, z);
-                    if (block == null || block == Blocks.AIR ||
-                            !block.shouldRenderSide(chunk, x, y, z, Side.BACK)) {
+                    if (block == null || block == Blocks.AIR || !block.shouldRenderSide(chunk, x, y, z, Side.BACK)) {
                         processed[x][y][z] = true;
                         continue;
                     }
@@ -256,6 +313,18 @@ public class GreedyMesher {
                     int height = rect[1];
                     int endX = rect[2];
                     int endY = rect[3];
+
+                    // Validate that the entire rectangle should render this side
+                    // Use lenient validation - only check if the original block should render
+                    if (!block.shouldRenderSide(chunk, x, y, z, Side.BACK)) {
+                        // Mark as processed to skip individual processing
+                        for (int px = x; px <= endX && px < World.CHUNK_SIZE; px++) {
+                            for (int py = y; py <= endY && py < World.CHUNK_SIZE; py++) {
+                                processed[px][py][z] = true;
+                            }
+                        }
+                        continue;
+                    }
 
                     // Mark processed area for this specific Z level only
                     for (int px = x; px <= endX && px < World.CHUNK_SIZE; px++) {
@@ -285,8 +354,7 @@ public class GreedyMesher {
                         continue;
 
                     Block block = chunk.getBlock(x, y, z);
-                    if (block == null || block == Blocks.AIR ||
-                            !block.shouldRenderSide(chunk, x, y, z, Side.LEFT)) {
+                    if (block == null || block == Blocks.AIR || !block.shouldRenderSide(chunk, x, y, z, Side.LEFT)) {
                         processed[x][y][z] = true;
                         continue;
                     }
@@ -300,6 +368,18 @@ public class GreedyMesher {
                     int height = rect[1];
                     int endZ = rect[2];
                     int endY = rect[3];
+
+                    // Validate that the entire rectangle should render this side
+                    // Use lenient validation - only check if the original block should render
+                    if (!block.shouldRenderSide(chunk, x, y, z, Side.LEFT)) {
+                        // Mark as processed to skip individual processing
+                        for (int pz = z; pz <= endZ && pz < World.CHUNK_SIZE; pz++) {
+                            for (int py = y; py <= endY && py < World.CHUNK_SIZE; py++) {
+                                processed[x][py][pz] = true;
+                            }
+                        }
+                        continue;
+                    }
 
                     // Mark processed area for this specific X level only
                     for (int pz = z; pz <= endZ && pz < World.CHUNK_SIZE; pz++) {
@@ -329,8 +409,7 @@ public class GreedyMesher {
                         continue;
 
                     Block block = chunk.getBlock(x, y, z);
-                    if (block == null || block == Blocks.AIR ||
-                            !block.shouldRenderSide(chunk, x, y, z, Side.RIGHT)) {
+                    if (block == null || block == Blocks.AIR || !block.shouldRenderSide(chunk, x, y, z, Side.RIGHT)) {
                         processed[x][y][z] = true;
                         continue;
                     }
@@ -344,6 +423,18 @@ public class GreedyMesher {
                     int height = rect[1];
                     int endZ = rect[2];
                     int endY = rect[3];
+
+                    // Validate that the entire rectangle should render this side
+                    // Use lenient validation - only check if the original block should render
+                    if (!block.shouldRenderSide(chunk, x, y, z, Side.RIGHT)) {
+                        // Mark as processed to skip individual processing
+                        for (int pz = z; pz <= endZ && pz < World.CHUNK_SIZE; pz++) {
+                            for (int py = y; py <= endY && py < World.CHUNK_SIZE; py++) {
+                                processed[x][py][pz] = true;
+                            }
+                        }
+                        continue;
+                    }
 
                     // Mark processed area for this specific X level only
                     for (int pz = z; pz <= endZ && pz < World.CHUNK_SIZE; pz++) {
@@ -363,8 +454,8 @@ public class GreedyMesher {
         }
     }
 
-    private static int[] findGreedyRectangle2D_XZ(Chunk chunk, int startX, int startZ,
-            boolean[][][] processed, Block blockType, int y, Side side) {
+    private static int[] findGreedyRectangle2D_XZ(Chunk chunk, int startX, int startZ, boolean[][][] processed,
+            Block blockType, int y, Side side) {
         int width = 1;
         int height = 1;
 
@@ -394,8 +485,8 @@ public class GreedyMesher {
         return new int[] { width, height, startX + width - 1, startZ + height - 1 };
     }
 
-    private static int[] findGreedyRectangle2D_XY(Chunk chunk, int startX, int startY,
-            boolean[][][] processed, Block blockType, int z, Side side) {
+    private static int[] findGreedyRectangle2D_XY(Chunk chunk, int startX, int startY, boolean[][][] processed,
+            Block blockType, int z, Side side) {
         int width = 1;
         int height = 1;
 
@@ -425,8 +516,8 @@ public class GreedyMesher {
         return new int[] { width, height, startX + width - 1, startY + height - 1 };
     }
 
-    private static int[] findGreedyRectangle2D_ZY(Chunk chunk, int startZ, int startY,
-            boolean[][][] processed, Block blockType, int x, Side side) {
+    private static int[] findGreedyRectangle2D_ZY(Chunk chunk, int startZ, int startY, boolean[][][] processed,
+            Block blockType, int x, Side side) {
         int width = 1;
         int height = 1;
 
@@ -456,8 +547,8 @@ public class GreedyMesher {
         return new int[] { width, height, startZ + width - 1, startY + height - 1 };
     }
 
-    private static boolean canExpand2D_XZ(Chunk chunk, int x, int z, int y,
-            boolean[][][] processed, Block blockType, Side side) {
+    private static boolean canExpand2D_XZ(Chunk chunk, int x, int z, int y, boolean[][][] processed, Block blockType,
+            Side side) {
         if (x < 0 || x >= World.CHUNK_SIZE || z < 0 || z >= World.CHUNK_SIZE) {
             return false;
         }
@@ -466,13 +557,13 @@ public class GreedyMesher {
             return false;
 
         Block otherBlock = chunk.getBlock(x, y, z);
-        return otherBlock != null &&
-                otherBlock == blockType &&
-                otherBlock.shouldRenderSide(chunk, x, y, z, side);
+        // Only check if blocks are the same type for greedy meshing
+        // Visibility check is done separately for the entire rectangle
+        return otherBlock != null && otherBlock == blockType;
     }
 
-    private static boolean canExpand2D_XY(Chunk chunk, int x, int y, int z,
-            boolean[][][] processed, Block blockType, Side side) {
+    private static boolean canExpand2D_XY(Chunk chunk, int x, int y, int z, boolean[][][] processed, Block blockType,
+            Side side) {
         if (x < 0 || x >= World.CHUNK_SIZE || y < 0 || y >= World.CHUNK_SIZE) {
             return false;
         }
@@ -481,13 +572,13 @@ public class GreedyMesher {
             return false;
 
         Block otherBlock = chunk.getBlock(x, y, z);
-        return otherBlock != null &&
-                otherBlock == blockType &&
-                otherBlock.shouldRenderSide(chunk, x, y, z, side);
+        // Only check if blocks are the same type for greedy meshing
+        // Visibility check is done separately for the entire rectangle
+        return otherBlock != null && otherBlock == blockType;
     }
 
-    private static boolean canExpand2D_ZY(Chunk chunk, int z, int y, int x,
-            boolean[][][] processed, Block blockType, Side side) {
+    private static boolean canExpand2D_ZY(Chunk chunk, int z, int y, int x, boolean[][][] processed, Block blockType,
+            Side side) {
         if (z < 0 || z >= World.CHUNK_SIZE || y < 0 || y >= World.CHUNK_SIZE) {
             return false;
         }
@@ -496,9 +587,9 @@ public class GreedyMesher {
             return false;
 
         Block otherBlock = chunk.getBlock(x, y, z);
-        return otherBlock != null &&
-                otherBlock == blockType &&
-                otherBlock.shouldRenderSide(chunk, x, y, z, side);
+        // Only check if blocks are the same type for greedy meshing
+        // Visibility check is done separately for the entire rectangle
+        return otherBlock != null && otherBlock == blockType;
     }
 
     private static void createQuad(FaceMeshResult result, int x, int y, int z, int width, int height, Side side) {
@@ -516,27 +607,31 @@ public class GreedyMesher {
 
             // Use tiled texture coordinates - each block gets a full texture
             float u, v;
+
+            // For side faces, flip V coordinate to fix upside-down textures
+            boolean isSideFace = (side == Side.FRONT || side == Side.BACK || side == Side.LEFT || side == Side.RIGHT);
+
             switch (i) {
-                case 0: // Bottom-left corner
-                    u = 0.0f;
-                    v = 0.0f;
-                    break;
-                case 1: // Bottom-right corner
-                    u = (float) width; // Tile across width
-                    v = 0.0f;
-                    break;
-                case 2: // Top-right corner
-                    u = (float) width; // Tile across width
-                    v = (float) height; // Tile across height
-                    break;
-                case 3: // Top-left corner
-                    u = 0.0f;
-                    v = (float) height; // Tile across height
-                    break;
-                default:
-                    u = 0.0f;
-                    v = 0.0f;
-                    break;
+            case 0: // Bottom-left corner
+                u = 0.0f;
+                v = isSideFace ? (float) height : 0.0f; // Flip V for side faces
+                break;
+            case 1: // Bottom-right corner
+                u = (float) width; // Tile across width
+                v = isSideFace ? (float) height : 0.0f; // Flip V for side faces
+                break;
+            case 2: // Top-right corner
+                u = (float) width; // Tile across width
+                v = isSideFace ? 0.0f : (float) height; // Flip V for side faces
+                break;
+            case 3: // Top-left corner
+                u = 0.0f;
+                v = isSideFace ? 0.0f : (float) height; // Flip V for side faces
+                break;
+            default:
+                u = 0.0f;
+                v = 0.0f;
+                break;
             }
             result.texCoords.add(u);
             result.texCoords.add(v);
@@ -556,49 +651,49 @@ public class GreedyMesher {
         Vector3f[] corners = new Vector3f[4];
 
         switch (side) {
-            case TOP:
-                corners[0] = new Vector3f(x, y + 1, z);
-                corners[1] = new Vector3f(x + width, y + 1, z);
-                corners[2] = new Vector3f(x + width, y + 1, z + height);
-                corners[3] = new Vector3f(x, y + 1, z + height);
-                break;
-            case BOTTOM:
-                corners[0] = new Vector3f(x, y, z);
-                corners[1] = new Vector3f(x, y, z + height);
-                corners[2] = new Vector3f(x + width, y, z + height);
-                corners[3] = new Vector3f(x + width, y, z);
-                break;
-            case FRONT:
-                corners[0] = new Vector3f(x, y, z + 1);
-                corners[1] = new Vector3f(x + width, y, z + 1);
-                corners[2] = new Vector3f(x + width, y + height, z + 1);
-                corners[3] = new Vector3f(x, y + height, z + 1);
-                break;
-            case BACK:
-                corners[0] = new Vector3f(x + width, y, z);
-                corners[1] = new Vector3f(x, y, z);
-                corners[2] = new Vector3f(x, y + height, z);
-                corners[3] = new Vector3f(x + width, y + height, z);
-                break;
-            case RIGHT:
-                corners[0] = new Vector3f(x + 1, y, z);
-                corners[1] = new Vector3f(x + 1, y, z + width);
-                corners[2] = new Vector3f(x + 1, y + height, z + width);
-                corners[3] = new Vector3f(x + 1, y + height, z);
-                break;
-            case LEFT:
-                corners[0] = new Vector3f(x, y, z + width);
-                corners[1] = new Vector3f(x, y, z);
-                corners[2] = new Vector3f(x, y + height, z);
-                corners[3] = new Vector3f(x, y + height, z + width);
-                break;
-            default:
-                // Default to front face
-                corners[0] = new Vector3f(x, y, z + 1);
-                corners[1] = new Vector3f(x + width, y, z + 1);
-                corners[2] = new Vector3f(x + width, y + height, z + 1);
-                corners[3] = new Vector3f(x, y + height, z + 1);
-                break;
+        case TOP:
+            corners[0] = new Vector3f(x, y + 1, z);
+            corners[1] = new Vector3f(x + width, y + 1, z);
+            corners[2] = new Vector3f(x + width, y + 1, z + height);
+            corners[3] = new Vector3f(x, y + 1, z + height);
+            break;
+        case BOTTOM:
+            corners[0] = new Vector3f(x, y, z);
+            corners[1] = new Vector3f(x, y, z + height);
+            corners[2] = new Vector3f(x + width, y, z + height);
+            corners[3] = new Vector3f(x + width, y, z);
+            break;
+        case FRONT:
+            corners[0] = new Vector3f(x, y, z + 1);
+            corners[1] = new Vector3f(x + width, y, z + 1);
+            corners[2] = new Vector3f(x + width, y + height, z + 1);
+            corners[3] = new Vector3f(x, y + height, z + 1);
+            break;
+        case BACK:
+            corners[0] = new Vector3f(x + width, y, z);
+            corners[1] = new Vector3f(x, y, z);
+            corners[2] = new Vector3f(x, y + height, z);
+            corners[3] = new Vector3f(x + width, y + height, z);
+            break;
+        case RIGHT:
+            corners[0] = new Vector3f(x + 1, y, z + width);
+            corners[1] = new Vector3f(x + 1, y, z);
+            corners[2] = new Vector3f(x + 1, y + height, z);
+            corners[3] = new Vector3f(x + 1, y + height, z + width);
+            break;
+        case LEFT:
+            corners[0] = new Vector3f(x, y, z);
+            corners[1] = new Vector3f(x, y, z + width);
+            corners[2] = new Vector3f(x, y + height, z + width);
+            corners[3] = new Vector3f(x, y + height, z);
+            break;
+        default:
+            // Default to front face
+            corners[0] = new Vector3f(x, y, z + 1);
+            corners[1] = new Vector3f(x + width, y, z + 1);
+            corners[2] = new Vector3f(x + width, y + height, z + 1);
+            corners[3] = new Vector3f(x, y + height, z + 1);
+            break;
         }
 
         return corners;
