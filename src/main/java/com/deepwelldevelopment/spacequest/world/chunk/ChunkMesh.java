@@ -16,6 +16,14 @@ public class ChunkMesh {
 
     public ChunkMesh(Chunk chunk) {
         this.chunk = chunk;
+        this.calculateMesh();
+    }
+
+    public List<VoxelModelData> getVoxelModels() {
+        return voxelModels;
+    }
+
+    public void calculateMesh() {
         try {
             // Use greedy meshing for better performance
             VoxelModelFactory.VoxelModelData voxelModel = VoxelModelFactory.createFromBlocksGreedy(
@@ -35,9 +43,5 @@ public class ChunkMesh {
                     + chunk.getWorldZ() + "): " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    public List<VoxelModelData> getVoxelModels() {
-        return voxelModels;
     }
 }

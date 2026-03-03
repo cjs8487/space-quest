@@ -61,6 +61,7 @@ public class Chunk {
 
     public void setBlock(int x, int y, int z, Block block) {
         blocks[x][y][z] = block;
+        chunkMesh.calculateMesh();
     }
 
     public void generate() {

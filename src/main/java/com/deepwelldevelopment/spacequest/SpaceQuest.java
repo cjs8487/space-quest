@@ -14,12 +14,17 @@ import org.tinylog.Logger;
 import com.deepwelldevelopment.spacequest.engine.Engine;
 import com.deepwelldevelopment.spacequest.engine.EngineContext;
 import com.deepwelldevelopment.spacequest.engine.graphics.Renderer;
+import com.deepwelldevelopment.spacequest.engine.physics.Ray;
+import com.deepwelldevelopment.spacequest.engine.physics.RaycastResult;
+import com.deepwelldevelopment.spacequest.engine.physics.RaycasterUtil;
 import com.deepwelldevelopment.spacequest.engine.scene.Camera;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.engine.window.KeyboardInput;
 import com.deepwelldevelopment.spacequest.engine.window.MouseInput;
 import com.deepwelldevelopment.spacequest.engine.window.Window;
 import com.deepwelldevelopment.spacequest.world.World;
+
+import com.deepwelldevelopment.spacequest.block.Blocks;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -82,6 +87,9 @@ public class SpaceQuest {
             Vector2f deltaPos = mi.getDeltaPos();
             camera.addRotation((float) Math.toRadians(deltaPos.y * MOUSE_SENSITIVITY),
                     (float) Math.toRadians(deltaPos.x * MOUSE_SENSITIVITY));
+
+            // Handle block interaction
+            handleBlockInteraction(mi, camera);
         }
 
         ki.reset();
@@ -92,6 +100,37 @@ public class SpaceQuest {
     }
 
     public void cleanup() {
+    }
+
+    private void handleBlockInteraction(MouseInput mouseInput, Camera camera) {
+        if (mouseInput.isLeftButtonSinglePress()) {
+            Ray ray = RaycasterUtil.getForwardRay(camera);
+            RaycastResult result = world.raycast(ray, 5.0f);
+
+            if (result.hit) {
+                int placeX = (int) result.blockPosition.x + (int) result.hitNormal.x;
+                int placeY = (int) result.blockPosition.y + (int) result.hitNormal.y;
+                int placeZ = (int) result.blockPosition.z + (int) result.hitNormal.z;
+                System.out.println(result.hitNormal);
+
+                if (world.getBlock(placeX, placeY, placeZ) == Blocks.AIR) {
+                    world.setBlock(placeX, placeY, placeZ, Blocks.STONE);
+                }
+            }
+        }
+
+        if (mouseInput.isRightButtonSinglePress()) {
+            Ray ray = RaycasterUtil.getForwardRay(camera);
+            RaycastResult result = world.raycast(ray, 5.0f);
+
+            if (result.hit) {
+                int removeX = (int) result.blockPosition.x;
+                int removeY = (int) result.blockPosition.y;
+                int removeZ = (int) result.blockPosition.z;
+
+                world.setBlock(removeX, removeY, removeZ, Blocks.AIR);
+            }
+        }
     }
 
     private boolean handleGui(EngineContext engCtx) {

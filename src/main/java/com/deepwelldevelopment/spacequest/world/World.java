@@ -8,10 +8,14 @@ import java.util.Map;
 import java.util.Random;
 
 import org.joml.Vector3f;
+import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.block.Block;
 import com.deepwelldevelopment.spacequest.engine.graphics.Renderer;
 import com.deepwelldevelopment.spacequest.engine.model.ModelData;
+import com.deepwelldevelopment.spacequest.engine.physics.Ray;
+import com.deepwelldevelopment.spacequest.engine.physics.RaycastResult;
+import com.deepwelldevelopment.spacequest.engine.physics.Raycaster;
 import com.deepwelldevelopment.spacequest.engine.scene.Scene;
 import com.deepwelldevelopment.spacequest.world.chunk.Chunk;
 import com.deepwelldevelopment.spacequest.world.chunk.ChunkMesh;
@@ -57,6 +61,41 @@ public class World {
             return null;
         }
         return chunk.getBlock(localX, localY, localZ);
+    }
+
+    public RaycastResult raycast(Ray ray) {
+        return Raycaster.raycast(this, ray);
+    }
+
+    public RaycastResult raycast(Ray ray, float maxDistance) {
+        return Raycaster.raycast(this, ray, maxDistance);
+    }
+
+    public void setBlock(int x, int y, int z, Block block) {
+        int localX = (x & 15);
+        int localY = y; // Y is already local since we don't stack chunks vertically
+        int localZ = (z & 15);
+
+        Logger.info("Setting block at " + x + ", " + y + ", " + z + " to " + block);
+
+        Chunk chunk = getChunk(x, z);
+        if (chunk != null) {
+            chunk.setBlock(localX, localY, localZ, block);
+            if (renderer != null && scene != null) {
+                ChunkMesh chunkMesh = chunk.getChunkMesh();
+                if (chunkMesh != null) {
+                    List<ModelData> models = new ArrayList<>();
+                    // Add model data and entities
+                    for (var voxelModel : chunkMesh.getVoxelModels()) {
+                        models.add(voxelModel.modelData);
+                        scene.addEntity(voxelModel.entity);
+                    }
+                    for (ModelData modelData : models) {
+                        renderer.addModel(modelData);
+                    }
+                }
+            }
+        }
     }
 
     public void generate() {
