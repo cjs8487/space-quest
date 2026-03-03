@@ -3,12 +3,13 @@ package com.deepwelldevelopment.spacequest.world;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 import org.joml.Vector3f;
-import org.tinylog.Logger;
 
 import com.deepwelldevelopment.spacequest.block.Block;
 import com.deepwelldevelopment.spacequest.engine.graphics.Renderer;
@@ -30,6 +31,8 @@ public class World {
     private Renderer renderer;
     private Scene scene;
     private int worldSeed;
+
+    private Set<Chunk> dirtyChunks = new HashSet<>();
 
     public World() {
         this.chunks = new HashMap<Long, Chunk>();
@@ -76,26 +79,10 @@ public class World {
         int localY = y; // Y is already local since we don't stack chunks vertically
         int localZ = (z & 15);
 
-        Logger.info("Setting block at " + x + ", " + y + ", " + z + " to " + block);
-
         Chunk chunk = getChunk(x, z);
         if (chunk != null) {
             chunk.setBlock(localX, localY, localZ, block);
-
-            if (renderer != null && scene != null) {
-                ChunkMesh chunkMesh = chunk.getChunkMesh();
-                if (chunkMesh != null) {
-                    List<ModelData> models = new ArrayList<>();
-                    // Add model data and entities
-                    for (var voxelModel : chunkMesh.getVoxelModels()) {
-                        models.add(voxelModel.modelData);
-                        scene.addEntity(voxelModel.entity);
-                    }
-                    for (ModelData modelData : models) {
-                        renderer.addModel(modelData);
-                    }
-                }
-            }
+            dirtyChunks.add(chunk);
         }
     }
 
@@ -132,6 +119,26 @@ public class World {
         // Only trigger cleanup if we actually removed chunks
         if (hadChunksToRemove && renderer != null) {
             renderer.triggerCleanup();
+        }
+
+        if (!dirtyChunks.isEmpty() && renderer != null && scene != null) {
+            List<ModelData> modelsToUpdate = new ArrayList<>();
+            for (Chunk dirtyChunk : dirtyChunks) {
+                ChunkMesh chunkMesh = dirtyChunk.getChunkMesh();
+                if (chunkMesh != null) {
+                    chunkMesh.calculateMesh();
+                    for (var voxelModel : chunkMesh.getVoxelModels()) {
+                        modelsToUpdate.add(voxelModel.modelData);
+                    }
+                }
+            }
+
+            // Batch update all models at once
+            for (ModelData modelData : modelsToUpdate) {
+                renderer.updateModel(modelData);
+            }
+
+            dirtyChunks.clear();
         }
     }
 
