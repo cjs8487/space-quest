@@ -143,7 +143,7 @@ public class SpaceQuest {
 
         ImGui.newFrame();
         ImGui.setNextWindowPos(0, 0, ImGuiCond.Always);
-        ImGui.setNextWindowSize(200, 200);
+        ImGui.setNextWindowSize(200, 250);
         ImGui.begin("Overlay", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize
                 | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoInputs);
 
@@ -152,6 +152,10 @@ public class SpaceQuest {
         ImGui.newLine();
         ImGui.text("Chunk: " + Math.floorDiv((int) engCtx.scene().getCamera().getPosition().x, 16) + ", "
                 + Math.floorDiv((int) engCtx.scene().getCamera().getPosition().z, 16));
+        ImGui.newLine();
+        ImGui.text("FPS: " + engCtx.engine().getFps());
+        ImGui.text("UPS: " + engCtx.engine().getUps());
+
         ImGui.end();
         ImGui.render();
         ImGui.endFrame();
