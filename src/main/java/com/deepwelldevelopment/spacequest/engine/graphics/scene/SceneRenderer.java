@@ -323,6 +323,10 @@ public class SceneRenderer {
             for (int i = 0; i < numEntities; i++) {
                 var entity = entities.get(i);
                 VulkanModel model = modelsCache.getModel(entity.getModelId());
+                if (model == null) {
+                    Logger.warn("Entity [{}] does not have model", i);
+                    continue;
+                }
                 List<VulkanMesh> vulkanMeshList = model.getMeshes();
                 int numMeshes = vulkanMeshList.size();
                 for (int j = 0; j < numMeshes; j++) {
