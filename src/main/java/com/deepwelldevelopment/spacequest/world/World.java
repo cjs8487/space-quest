@@ -81,6 +81,7 @@ public class World {
         Chunk chunk = getChunk(x, z);
         if (chunk != null) {
             chunk.setBlock(localX, localY, localZ, block);
+
             if (renderer != null && scene != null) {
                 ChunkMesh chunkMesh = chunk.getChunkMesh();
                 if (chunkMesh != null) {
